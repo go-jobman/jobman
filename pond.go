@@ -39,7 +39,7 @@ type Pond struct {
 }
 
 func (p *Pond) String() string {
-	return fmt.Sprintf("🗳️Pond{[%s] Queue:%d Pool:%d Shared:%s}",
+	return fmt.Sprintf("🗳️Pond[%s]{Queue:%d Pool:%d Shared:%s}",
 		p.name,
 		p.queueSize,
 		p.poolSize,

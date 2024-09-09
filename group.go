@@ -26,7 +26,7 @@ type Group struct {
 
 func (g *Group) String() string {
 	return fmt.Sprintf(
-		"🔀Group{[%s] Ponds:%d Received:%d Enqueued:%d}",
+		"🔀Group[%s]{Ponds:%d Received:%d Enqueued:%d}",
 		g.name,
 		len(g.partPonds)+1,
 		g.cntRecv.Load(),
@@ -49,12 +49,12 @@ func NewGroup(name string, sharedQueue, sharedPool int) *Group {
 	}
 }
 
-// InitializePartitionPond initializes the pond for the given partition.
-func (g *Group) InitializePartitionPond(partition string, queueSize, poolSize int) {
+// InitializePond initializes the pond for the given partition.
+func (g *Group) InitializePond(partition string, queueSize, poolSize int) {
 	g.Lock()
 	defer g.Unlock()
 
-	// empty partition means shared pond
+	// empty partition means shared pond, which is already initialized
 	if partition == "" {
 		return
 	}
