@@ -46,7 +46,8 @@ type AllocatedJob struct {
 }
 
 var (
-	ErrJobNil = errors.New("job is nil")
+	ErrJobNil     = errors.New("job is nil")
+	ErrClosedPond = errors.New("pond is closed")
 )
 
 var (

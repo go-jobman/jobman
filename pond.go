@@ -20,6 +20,7 @@ type Pond struct {
 	ctx       context.Context
 	cancel    context.CancelFunc
 	lg        *zap.SugaredLogger
+	isClosed  bool
 	name      string
 	isShared  bool
 	queueSize int
@@ -83,6 +84,7 @@ func (p *Pond) Close() {
 	p.Lock()
 	defer p.Unlock()
 
+	p.isClosed = true
 	p.cancel()
 	_ = p.queue.Close()
 	p.pool.Release()
@@ -98,6 +100,10 @@ func (p *Pond) ResizeQueue(newSize int) {
 	p.Lock()
 	defer p.Unlock()
 
+	// if the pond is closed, do nothing
+	if p.isClosed {
+		return
+	}
 	// do nothing if the size is not changed
 	if newSize == p.queueSize {
 		return
@@ -119,6 +125,10 @@ func (p *Pond) ResizePool(newSize int) {
 	p.Lock()
 	defer p.Unlock()
 
+	// if the pond is closed, do nothing
+	if p.isClosed {
+		return
+	}
 	// do nothing if the size is not changed
 	if newSize == p.poolSize {
 		return
@@ -134,6 +144,8 @@ func (p *Pond) ResizePool(newSize int) {
 func (p *Pond) Submit(j Job) error {
 	if j == nil {
 		return ErrJobNil
+	} else if p.isClosed {
+		return ErrClosedPond
 	}
 
 	// basic
@@ -181,6 +193,10 @@ func (p *Pond) Subscribe(q *fifo.Queue[*AllocatedJob]) {
 	p.Lock()
 	defer p.Unlock()
 
+	// do nothing if the pond is closed
+	if p.isClosed {
+		return
+	}
 	p.extQueues = append(p.extQueues, q)
 }
 
@@ -196,6 +212,9 @@ func (p *Pond) GetPool() *ants.Pool {
 
 // StartPartitionWatchAsync starts the pond watch loop asynchronously.
 func (p *Pond) StartPartitionWatchAsync() {
+	if p.isClosed {
+		return // do nothing if the pond is closed
+	}
 	p.watchOnce.Do(func() {
 		go p.startPartitionWatch()
 	})
@@ -203,6 +222,9 @@ func (p *Pond) StartPartitionWatchAsync() {
 
 // StartSharedWatchAsync starts the pond watch loop for own and all external queues asynchronously.
 func (p *Pond) StartSharedWatchAsync() {
+	if p.isClosed {
+		return // do nothing if the pond is closed
+	}
 	p.watchOnce.Do(func() {
 		go p.startSharedWatch()
 	})
@@ -251,7 +273,7 @@ func (p *Pond) startPartitionWatch() {
 				if err := pl.Submit(func() {
 					l.Debugw("✅ partition job starts in partition pool", "job_id", jid, "start_count", p.cntStart.Inc(), "queue_time", time.Since(ja.SubmitAt))
 					<-ja.readyProc
-					l.Debugw("🚀 job is ready to proceed in shared pool", "job_id", jid)
+					l.Debugw("🚀 job is ready to proceed in partition pool", "job_id", jid)
 					ja.Job.Proceed()
 					l.Debugw("🏁 partition job completes in partition pool", "job_id", jid, "done_count", p.cntDone.Inc())
 				}); err != nil {
@@ -352,10 +374,9 @@ func (p *Pond) startSharedWatch() {
 				if !ok {
 					return
 				}
-
 				jid := ja.Job.ID()
 				if err := pl.Submit(func() {
-					l.Debugw("☑️ job starts in shared pool", "job_id", jid, "start_count", p.cntStart.Inc())
+					l.Debugw("☑️ job starts in shared pool", "job_id", jid, "start_count", p.cntStart.Inc(), "queue_time", time.Since(ja.SubmitAt))
 					<-ja.readyProc
 					l.Debugw("🚀 job is ready to proceed in shared pool", "job_id", jid)
 					ja.Job.Proceed()
