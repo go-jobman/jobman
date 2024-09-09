@@ -1,5 +1,7 @@
 package jobman
 
+import "time"
+
 // Job interface defines the methods that any job should implement.
 type Job interface {
 	ID() string        // Return the unique identifier for the job.
@@ -31,3 +33,11 @@ func (a Allocation) IsValid() bool {
 
 // AllocatorFunc is a function type that defines the signature for allocating a job to a pond of a group.
 type AllocatorFunc func(group, partition string) (Allocation, error)
+
+// AllocatedJob is actually a wrapper for job with an index in the pond and the lock, used for queueing.
+type AllocatedJob struct {
+	readyProc chan struct{}
+	PondIndex int64
+	SubmitAt  time.Time
+	Job       Job
+}
