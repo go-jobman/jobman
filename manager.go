@@ -8,7 +8,7 @@ import (
 	"go.uber.org/zap"
 )
 
-// Manager is the main entry point for submitting batch jobs.
+// Manager is the main entry point for submitting jobs.
 type Manager struct {
 	sync.RWMutex
 	lg     *zap.SugaredLogger

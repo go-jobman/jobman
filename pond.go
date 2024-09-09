@@ -14,6 +14,8 @@ import (
 	"gopkg.in/fifo.v0"
 )
 
+// Pond represents a job processing unit with a queue and a pool of workers.
+// It manages the lifecycle, logging, and counters for various job states.
 type Pond struct {
 	// basic
 	sync.RWMutex

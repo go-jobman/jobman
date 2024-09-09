@@ -1,3 +1,6 @@
+// Package jobman provides functionality for managing job processing units called ponds.
+// It includes error definitions, constants for shared pond operations, and utility functions
+// for creating and managing ponds and their associated job queues and worker pools.
 package jobman
 
 import (

@@ -9,6 +9,8 @@ import (
 	"go.uber.org/zap"
 )
 
+// Group represents a collection of ponds, including a shared pond and partition ponds.
+// It manages the context, logger, and counters for received and enqueued items.
 type Group struct {
 	// basic
 	sync.RWMutex
