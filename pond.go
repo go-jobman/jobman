@@ -38,14 +38,6 @@ type Pond struct {
 	cntDone  atomic.Int64
 }
 
-func (p *Pond) String() string {
-	return fmt.Sprintf("🗳️Pond[%s]{Queue:%d Pool:%d Shared:%s}",
-		p.name,
-		p.queueSize,
-		p.poolSize,
-		charBool(p.isShared))
-}
-
 // NewPartitionPond creates a new partition pond with the specified queue and pool size.
 func NewPartitionPond(name string, queueSize, poolSize int) *Pond {
 	ctx, cl := context.WithCancel(context.Background())
@@ -62,6 +54,14 @@ func NewPartitionPond(name string, queueSize, poolSize int) *Pond {
 	}
 	pd.lg.Debugw("new partition pond created", "queue_size", queueSize, "pool_size", poolSize)
 	return pd
+}
+
+func (p *Pond) String() string {
+	return fmt.Sprintf("🗳️Pond[%s]{Queue:%d Pool:%d Shared:%s}",
+		p.name,
+		p.queueSize,
+		p.poolSize,
+		charBool(p.isShared))
 }
 
 // NewSharedPond creates a new shared pond with the specified queue and pool size.

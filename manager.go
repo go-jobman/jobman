@@ -1,6 +1,7 @@
 package jobman
 
 import (
+	"fmt"
 	"sync"
 
 	"go.uber.org/zap"
@@ -32,6 +33,14 @@ func NewManager(name string) *Manager {
 		},
 		groups: make(map[string]*Group),
 	}
+}
+
+func (m *Manager) String() string {
+	return fmt.Sprintf(
+		"📨Manager[%s]{Groups:%d}",
+		m.name,
+		len(m.groups),
+	)
 }
 
 // SetAllocator sets the allocator function for the manager.

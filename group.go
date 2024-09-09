@@ -24,16 +24,6 @@ type Group struct {
 	cntEnque atomic.Int64
 }
 
-func (g *Group) String() string {
-	return fmt.Sprintf(
-		"🔀Group[%s]{Ponds:%d Received:%d Enqueued:%d}",
-		g.name,
-		len(g.partPonds)+1,
-		g.cntRecv.Load(),
-		g.cntEnque.Load(),
-	)
-}
-
 // NewGroup creates a new group of ponds.
 func NewGroup(name string, sharedQueue, sharedPool int) *Group {
 	ctx, cancel := context.WithCancel(context.Background())
@@ -47,6 +37,16 @@ func NewGroup(name string, sharedQueue, sharedPool int) *Group {
 		sharedPond: sp,
 		partPonds:  make(map[string]*Pond),
 	}
+}
+
+func (g *Group) String() string {
+	return fmt.Sprintf(
+		"🔀Group[%s]{Ponds:%d Received:%d Enqueued:%d}",
+		g.name,
+		len(g.partPonds)+1,
+		g.cntRecv.Load(),
+		g.cntEnque.Load(),
+	)
 }
 
 // InitializePond initializes the pond for the given partition.
