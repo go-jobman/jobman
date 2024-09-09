@@ -2,6 +2,7 @@ package jobman
 
 import (
 	"context"
+	"fmt"
 	"sync"
 
 	"go.uber.org/atomic"
@@ -21,6 +22,16 @@ type Group struct {
 	// counters
 	cntRecv  atomic.Int64
 	cntEnque atomic.Int64
+}
+
+func (g *Group) String() string {
+	return fmt.Sprintf(
+		"🔀Group{[%s] Ponds:%d Received:%d Enqueued:%d}",
+		g.name,
+		len(g.partPonds)+1,
+		g.cntRecv.Load(),
+		g.cntEnque.Load(),
+	)
 }
 
 // NewGroup creates a new group of ponds.

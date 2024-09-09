@@ -39,7 +39,11 @@ type Pond struct {
 }
 
 func (p *Pond) String() string {
-	return fmt.Sprintf("🗳️Pond{Name:%s Queue:%d Pool:%d Shared:%t}", p.name, p.queueSize, p.poolSize, p.isShared)
+	return fmt.Sprintf("🗳️Pond{[%s] Queue:%d Pool:%d Shared:%s}",
+		p.name,
+		p.queueSize,
+		p.poolSize,
+		amoy.CharBool(p.isShared))
 }
 
 // NewPartitionPond creates a new partition pond with the specified queue and pool size.
