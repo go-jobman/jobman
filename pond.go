@@ -1,13 +1,14 @@
 package jobman
 
 import (
+	"bitbucket.org/ai69/amoy"
 	"context"
 	"fmt"
 	"github.com/1set/gut/yrand"
 	"github.com/panjf2000/ants/v2"
 	"go.uber.org/atomic"
 	"go.uber.org/zap"
-	fifo "gopkg.in/fifo.v0"
+	"gopkg.in/fifo.v0"
 	"sync"
 	"time"
 )
@@ -44,8 +45,8 @@ func createPool(size int) *ants.Pool {
 	return pl
 }
 
-// NewTenantPond creates a new tenant pond with the specified queue and pool size.
-func NewTenantPond(name string, queueSize, poolSize int) *Pond {
+// NewPartitionPond creates a new partition pond with the specified queue and pool size.
+func NewPartitionPond(name string, queueSize, poolSize int) *Pond {
 	ctx, cl := context.WithCancel(context.Background())
 	pd := &Pond{
 		lg:        log.With("pond", name),
@@ -58,7 +59,7 @@ func NewTenantPond(name string, queueSize, poolSize int) *Pond {
 		queue:     fifo.New[*AllocatedJob](queueSize),
 		pool:      createPool(poolSize),
 	}
-	pd.lg.Debugw("new tenant pond created", "queue_size", queueSize, "pool_size", poolSize)
+	pd.lg.Debugw("new partition pond created", "queue_size", queueSize, "pool_size", poolSize)
 	return pd
 }
 
@@ -134,30 +135,53 @@ func (p *Pond) ResizePool(newSize int) {
 }
 
 // Submit submits a job to the pond.
-func (p *Pond) Submit(j *Job) (*Placement, error) {
+func (p *Pond) Submit(j Job) error {
 	if j == nil {
-		return nil, fmt.Errorf("job is nil")
+		return ErrJobNil
 	}
 
 	// basic
-	l := p.lg.With("method", "submit", "job_id", j.ID)
+	l := p.lg.With("method", "submit", "job_id", j.ID())
 	l.Debug("submit job")
 
 	// create a job allocation
 	idx := p.cntRecv.Inc()
-	ja := &AllocatedJob{Index: idx, SubmitAt: time.Now(), Job: j}
+	ja := &AllocatedJob{
+		readyProc: make(chan struct{}),
+		PondIndex: idx,
+		SubmitAt:  time.Now(),
+		Job:       j,
+	}
 
 	// attempt to enqueue the job, fail if the queue is full
 	if err := p.queue.TryEnqueue(ja); err != nil {
 		l.Warnw("enqueue failed", zap.Error(err))
-		return nil, err
+
+		// notify the job is rejected
+		go func() {
+			defer close(ja.readyProc)
+			if j.OnRejected != nil {
+				j.OnRejected()
+			}
+		}()
+
+		return err
 	}
+
+	// record the enqueue count
 	l.Debugw("job enqueued", "enqueue_count", p.cntEnque.Load())
 	p.cntEnque.Inc()
 
-	// create a placement
-	pl := &Placement{PondName: p.name, Index: idx, PondStat: p.GetStat()}
-	return pl, nil
+	// notify the job is accepted
+	go func() {
+		defer close(ja.readyProc)
+		if j.OnAccepted != nil {
+			j.OnAccepted()
+		}
+	}()
+
+	// return nil if the job is submitted successfully
+	return nil
 }
 
 // Subscribe subscribes a queue to the list of external queues.
@@ -178,10 +202,10 @@ func (p *Pond) GetPool() *ants.Pool {
 	return p.pool
 }
 
-// StartTenantWatchAsync starts the pond watch loop asynchronously.
-func (p *Pond) StartTenantWatchAsync() {
+// StartPartitionWatchAsync starts the pond watch loop asynchronously.
+func (p *Pond) StartPartitionWatchAsync() {
 	p.watchOnce.Do(func() {
-		go p.startTenantWatch()
+		go p.startPartitionWatch()
 	})
 }
 
@@ -192,7 +216,7 @@ func (p *Pond) StartSharedWatchAsync() {
 	})
 }
 
-func (p *Pond) startTenantWatch() {
+func (p *Pond) startPartitionWatch() {
 	l := p.lg.With("method", "own_watch")
 	jc := make(chan *AllocatedJob)
 	dc := p.ctx.Done()
@@ -211,10 +235,10 @@ func (p *Pond) startTenantWatch() {
 				return
 			default:
 				if ja, err := q.Dequeue(); err == nil {
-					ll.Debugw("tenant job dequeued", "job_id", ja.Job.ID, "dequeue_count", p.cntDeque.Inc())
+					ll.Debugw("partition job dequeued", "job_id", ja.Job.ID(), "dequeue_count", p.cntDeque.Inc())
 					jc <- ja
 				} else {
-					ll.Warnw("tenant dequeue failed", zap.Error(err))
+					ll.Warnw("partition job dequeue failed", zap.Error(err))
 				}
 			}
 		}
@@ -231,13 +255,16 @@ func (p *Pond) startTenantWatch() {
 				if !ok {
 					return
 				}
-				jid := ja.Job.ID
+				jid := ja.Job.ID()
 				if err := pl.Submit(func() {
-					l.Debugw("✅ tenant ja starts in tenant pool", "job_id", jid, "start_count", p.cntStart.Inc())
-					ja.Job.Hand(p.name) // TODO: core
-					l.Debugw("tenant ja completes in tenant pool", "job_id", jid, "done_count", p.cntDone.Inc())
+					l.Debugw("✅ partition job starts in partition pool", "job_id", jid, "start_count", p.cntStart.Inc(), "queue_time", time.Since(ja.SubmitAt))
+					<-ja.readyProc
+					if j := ja.Job; j.Proceed != nil {
+						j.Proceed()
+					}
+					l.Debugw("🏁 partition job completes in partition pool", "job_id", jid, "done_count", p.cntDone.Inc())
 				}); err != nil {
-					l.Warnw("failed to submit tenant ja to tenant pool", "job_id", jid, zap.Error(err))
+					l.Warnw("⚠️ failed to submit partition job to partition pool", "job_id", jid, zap.Error(err))
 				}
 			}
 		}
@@ -253,7 +280,7 @@ func (p *Pond) startSharedWatch() {
 	go func(done <-chan struct{}, jc chan<- *AllocatedJob, q *fifo.Queue[*AllocatedJob]) {
 		defer close(jc)
 		sleep := func() {
-			amoy.SleepForMilliseconds(100)
+			time.Sleep(SharedPondCheckInterval)
 		}
 
 		rd := 0
@@ -273,12 +300,10 @@ func (p *Pond) startSharedWatch() {
 				if ef := amoy.FixedRetry(func() error {
 					ja, err = q.TryDequeue()
 					return err
-				}, 3, amoy.Milliseconds(30)); ef == nil {
-					ll.Debugw("shared job dequeued", "job_id", ja.Job.ID, "dequeue_count", p.cntDeque.Inc())
+				}, SharedPondDequeueRetryLimit, SharedPondDequeueRetryInterval); ef == nil {
+					ll.Debugw("shared job dequeued", "job_id", ja.Job.ID(), "dequeue_count", p.cntDeque.Inc())
 					jc <- ja
 				} else {
-					//l.Debugw("no shared job dequeued", "dequeue_count", p.cntDeque.Load(), zap.Error(err))
-
 					// if got no left worker for external queues, sleep for a while
 					if p.pool.Free() <= 0 {
 						ll.Debugw("no left worker for external queues")
@@ -300,7 +325,6 @@ func (p *Pond) startSharedWatch() {
 					}
 
 					// shuffle the external queues
-					//l.Debugw("shuffle external queues", "queue_count", len(outs))
 					_ = yrand.Shuffle(len(outs), func(i, j int) {
 						outs[i], outs[j] = outs[j], outs[i]
 					})
@@ -310,7 +334,7 @@ func (p *Pond) startSharedWatch() {
 					for idx, out := range outs {
 						if ja, err := out.TryDequeue(); err == nil {
 							jobCnt++
-							ll.Debugw("external tenant job dequeued", "job_id", ja.Job.ID, "queue_idx", idx, "dequeue_count", p.cntDeque.Inc())
+							ll.Debugw("external tenant job dequeued", "job_id", ja.Job.ID(), "queue_idx", idx, "dequeue_count", p.cntDeque.Inc())
 							jc <- ja
 						}
 					}
@@ -338,13 +362,16 @@ func (p *Pond) startSharedWatch() {
 					return
 				}
 
-				jid := ja.Job.ID
+				jid := ja.Job.ID()
 				if err := pl.Submit(func() {
 					l.Debugw("☑️ job starts in shared pool", "job_id", jid, "start_count", p.cntStart.Inc())
-					ja.Job.Hand(p.name) // TODO: core
-					l.Debugw("job completes in shared pool", "job_id", jid, "done_count", p.cntDone.Inc())
+					<-ja.readyProc
+					if j := ja.Job; j.Proceed != nil {
+						j.Proceed()
+					}
+					l.Debugw("🏁 job completes in shared pool", "job_id", jid, "done_count", p.cntDone.Inc())
 				}); err != nil {
-					l.Warnw("failed to submit job to shared pool", "job_id", jid, zap.Error(err))
+					l.Warnw("⚠️ failed to submit job to shared pool", "job_id", jid, zap.Error(err))
 				}
 			}
 		}

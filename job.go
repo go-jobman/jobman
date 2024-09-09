@@ -1,6 +1,9 @@
 package jobman
 
-import "time"
+import (
+	"errors"
+	"time"
+)
 
 // Job interface defines the methods that any job should implement.
 type Job interface {
@@ -41,3 +44,13 @@ type AllocatedJob struct {
 	SubmitAt  time.Time
 	Job       Job
 }
+
+var (
+	ErrJobNil = errors.New("job is nil")
+)
+
+var (
+	SharedPondCheckInterval        = 100 * time.Millisecond
+	SharedPondDequeueRetryInterval = 30 * time.Millisecond
+	SharedPondDequeueRetryLimit    = uint(3)
+)
