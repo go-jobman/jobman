@@ -330,14 +330,14 @@ func (p *Pond) startSharedWatch() {
 					for idx, out := range outs {
 						if ja, err := out.TryDequeue(); err == nil {
 							jobCnt++
-							ll.Debugw("external tenant job dequeued", "job_id", ja.Job.ID(), "queue_idx", idx, "dequeue_count", p.cntDeque.Inc())
+							ll.Debugw("external partition job dequeued", "job_id", ja.Job.ID(), "queue_idx", idx, "dequeue_count", p.cntDeque.Inc())
 							jc <- ja
 						}
 					}
 
 					// if no job dequeued from external queues, sleep for a while
 					if jobCnt == 0 {
-						ll.Debugw("no external tenant job dequeued")
+						ll.Debugw("no external partition job dequeued")
 						sleep()
 						continue
 					}
