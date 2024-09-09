@@ -9,6 +9,8 @@ import (
 )
 
 var (
+	// ErrAllocatorNotSet is an error that indicates that the allocator function is not set.
+	ErrAllocatorNotSet = errors.New("allocator not set")
 	// ErrJobNil is an error that indicates that the job is nil.
 	ErrJobNil = errors.New("job is nil")
 	// ErrPondClosed is an error that indicates that the pond is closed.

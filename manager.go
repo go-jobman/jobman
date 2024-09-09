@@ -86,7 +86,11 @@ func (m *Manager) Dispatch(j Job) error {
 	l := m.lg.With(zap.String("method", "dispatch"), zap.Int64("mgr_idx", mgrIdx), zap.String("job_id", j.ID()))
 	l.Debug("try to dispatch job")
 
-	// get identifier for job
+	// get allocation for the job
+	if m.alloc == nil {
+		l.Warn("allocator not set")
+		return ErrAllocatorNotSet
+	}
 	al, err := m.alloc(j.Group(), j.Partition())
 	if err != nil {
 		l.Warnw("allocation failed", zap.Error(err))
