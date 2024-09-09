@@ -15,7 +15,7 @@ type Job interface {
 	Proceed()          // Called when the job is about to be executed by a worker.
 }
 
-// Allocation struct defines the allocation of a job to a pond of a group.
+// Allocation struct defines the allocation of a job to a pond of a group, and the size of the queue and pool of the pond.
 // GroupID represents the identifier of the group to which the job is allocated.
 // PondID represents the identifier of the pond within the group. An empty PondID indicates allocation to a shared pond.
 // IsShared indicates whether the job is allocated to a shared pond.
@@ -35,6 +35,8 @@ func (a Allocation) IsValid() bool {
 }
 
 // AllocatorFunc is a function type that defines the signature for allocating a job to a pond of a group.
+// It takes the group and partition as input parameters and returns an Allocation or an error.
+// If the partition is empty, the job should be allocated to a shared pond, and the size of the queue and pool of the shared pond should be returned.
 type AllocatorFunc func(group, partition string) (Allocation, error)
 
 // AllocatedJob is actually a wrapper for job with an index in the pond and the lock, used for queueing.
@@ -48,8 +50,12 @@ type AllocatedJob struct {
 var (
 	// ErrJobNil is an error that indicates that the job is nil.
 	ErrJobNil = errors.New("job is nil")
-	// ErrClosedPond is an error that indicates that the pond is closed.
-	ErrClosedPond = errors.New("pond is closed")
+	// ErrPondClosed is an error that indicates that the pond is closed.
+	ErrPondClosed = errors.New("pond is closed")
+	// ErrGroupNotFound is an error that indicates that the specified group was not found.
+	ErrGroupNotFound = errors.New("group not found")
+	// ErrPondNotFound is an error that indicates that the specified pond was not found.
+	ErrPondNotFound = errors.New("pond not found")
 )
 
 var (

@@ -149,7 +149,7 @@ func (p *Pond) Submit(j Job) error {
 	if j == nil {
 		return ErrJobNil
 	} else if p.isClosed {
-		return ErrClosedPond
+		return ErrPondClosed
 	}
 
 	// basic
