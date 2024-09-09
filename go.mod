@@ -1,4 +1,4 @@
-module jobman
+module gopkg.in/jobman.v0
 
 go 1.18
 
