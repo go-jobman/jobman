@@ -6,8 +6,8 @@ import (
 	"sync"
 	"time"
 
-	"bitbucket.org/ai69/amoy"
 	"github.com/1set/gut/yrand"
+	rg "github.com/avast/retry-go"
 	"github.com/panjf2000/ants/v2"
 	"go.uber.org/atomic"
 	"go.uber.org/zap"
@@ -43,7 +43,7 @@ func (p *Pond) String() string {
 		p.name,
 		p.queueSize,
 		p.poolSize,
-		amoy.CharBool(p.isShared))
+		charBool(p.isShared))
 }
 
 // NewPartitionPond creates a new partition pond with the specified queue and pool size.
@@ -317,7 +317,7 @@ func (p *Pond) startSharedWatch() {
 					ja  *AllocatedJob
 					err error
 				)
-				if ef := amoy.FixedRetry(func() error {
+				if ef := fixedRetry(func() error {
 					ja, err = q.TryDequeue()
 					return err
 				}, SharedPondDequeueRetryLimit, SharedPondDequeueRetryInterval); ef == nil {
@@ -387,4 +387,22 @@ func getPondName(ids ...string) string {
 		return ids[0] + "|_shared_"
 	}
 	return ids[0] + "|" + ids[1]
+}
+
+func charBool(yes bool) string {
+	if yes {
+		return "✔"
+	}
+	return "✘"
+}
+
+// fixedRetry retries to execute given function with consistent same delay.
+func fixedRetry(work func() error, times uint, delay time.Duration) error {
+	return rg.Do(
+		work,
+		rg.Attempts(times),
+		rg.DelayType(rg.FixedDelay),
+		rg.Delay(delay),
+		rg.LastErrorOnly(true),
+	)
 }
