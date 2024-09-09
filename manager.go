@@ -21,6 +21,7 @@ func NewManager(name string) *Manager {
 		lg:   log.With("manager", name),
 		name: name,
 		alloc: func(group, partition string) (Allocation, error) {
+			// default allocation: 2 queue size, 1 pool size
 			return Allocation{
 				GroupID:   group,
 				PondID:    partition,
@@ -33,7 +34,7 @@ func NewManager(name string) *Manager {
 	}
 }
 
-// SetAllocator sets the allocator function for the hub.
+// SetAllocator sets the allocator function for the manager.
 func (m *Manager) SetAllocator(a AllocatorFunc) {
 	m.Lock()
 	defer m.Unlock()
@@ -42,8 +43,8 @@ func (m *Manager) SetAllocator(a AllocatorFunc) {
 }
 
 // ResizeQueue resizes the queue of the pond in the specified group.
-func (m *Manager) ResizeQueue(group, tenant string, newSize int) error {
-	pd, err := m.findPond(group, tenant)
+func (m *Manager) ResizeQueue(group, partition string, newSize int) error {
+	pd, err := m.findPond(group, partition)
 	if err != nil {
 		return err
 	}
@@ -52,8 +53,8 @@ func (m *Manager) ResizeQueue(group, tenant string, newSize int) error {
 }
 
 // ResizePool resizes the pool of the pond in the specified group.
-func (m *Manager) ResizePool(group, tenant string, newSize int) error {
-	pd, err := m.findPond(group, tenant)
+func (m *Manager) ResizePool(group, partition string, newSize int) error {
+	pd, err := m.findPond(group, partition)
 	if err != nil {
 		return err
 	}
@@ -61,8 +62,8 @@ func (m *Manager) ResizePool(group, tenant string, newSize int) error {
 	return nil
 }
 
-// Submit submits a job to the pond of the specified group in the hub.
-func (m *Manager) Submit(j Job) error {
+// Dispatch submits a job to the pond of the specified group in the manager.
+func (m *Manager) Dispatch(j Job) error {
 	if j == nil {
 		return ErrJobNil
 	}
@@ -120,8 +121,8 @@ func (m *Manager) Submit(j Job) error {
 	return nil
 }
 
-// findPond is a helper method to find the pond via group and tenant.
-func (m *Manager) findPond(group, tenant string) (*Pond, error) {
+// findPond is a helper method to find the pond via group and partition.
+func (m *Manager) findPond(group, partition string) (*Pond, error) {
 	m.RLock()
 	defer m.RUnlock()
 
@@ -130,9 +131,9 @@ func (m *Manager) findPond(group, tenant string) (*Pond, error) {
 		log.Warnw("group not found", "group", group)
 		return nil, ErrGroupNotFound
 	}
-	pd := grp.GetPond(tenant)
+	pd := grp.GetPond(partition)
 	if pd == nil {
-		log.Warnw("pond not found", "group", group, "pond", tenant)
+		log.Warnw("pond not found", "group", group, "partition", partition)
 		return nil, ErrPondNotFound
 	}
 	return pd, nil
