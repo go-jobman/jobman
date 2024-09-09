@@ -230,6 +230,31 @@ func (p *Pond) StartSharedWatchAsync() {
 	})
 }
 
+// startJobSubmissionLoop starts the job submission loop.
+func (p *Pond) startJobSubmissionLoop(l *zap.SugaredLogger, done <-chan struct{}, jc <-chan *AllocatedJob, pl *ants.Pool) {
+	for {
+		select {
+		case <-done:
+			l.Debug("submit done")
+			return
+		case ja, ok := <-jc:
+			if !ok {
+				return
+			}
+			ll := l.With("job_id", ja.Job.ID())
+			if err := pl.Submit(func() {
+				ll.Debugw("☑️ job starts in pool", "start_count", p.cntStart.Inc(), "queue_time", time.Since(ja.SubmitAt))
+				<-ja.readyProc
+				ll.Debugw("🚀 job is ready to proceed in pool")
+				ja.Job.Proceed()
+				ll.Debugw("🏁 job completes in pool", "done_count", p.cntDone.Inc())
+			}); err != nil {
+				ll.Warnw("⚠️ failed to submit job to pool", zap.Error(err))
+			}
+		}
+	}
+}
+
 func (p *Pond) startPartitionWatch() {
 	l := p.lg.With("method", "own_watch")
 	jc := make(chan *AllocatedJob)
@@ -259,42 +284,20 @@ func (p *Pond) startPartitionWatch() {
 	}(dc, jc, p.queue)
 
 	// start the working loop to submit the job
-	go func(done <-chan struct{}, jc <-chan *AllocatedJob, pl *ants.Pool) {
-		for {
-			select {
-			case <-done:
-				l.Debug("submit done")
-				return
-			case ja, ok := <-jc:
-				if !ok {
-					return
-				}
-				jid := ja.Job.ID()
-				if err := pl.Submit(func() {
-					l.Debugw("✅ partition job starts in partition pool", "job_id", jid, "start_count", p.cntStart.Inc(), "queue_time", time.Since(ja.SubmitAt))
-					<-ja.readyProc
-					l.Debugw("🚀 job is ready to proceed in partition pool", "job_id", jid)
-					ja.Job.Proceed()
-					l.Debugw("🏁 partition job completes in partition pool", "job_id", jid, "done_count", p.cntDone.Inc())
-				}); err != nil {
-					l.Warnw("⚠️ failed to submit partition job to partition pool", "job_id", jid, zap.Error(err))
-				}
-			}
-		}
-	}(dc, jc, p.pool)
+	go p.startJobSubmissionLoop(l.With("pond_type", "partition"), dc, jc, p.pool)
 }
 
 func (p *Pond) startSharedWatch() {
 	l := p.lg.With("method", "all_watch")
 	jc := make(chan *AllocatedJob)
 	dc := p.ctx.Done()
+	sleep := func() {
+		time.Sleep(SharedPondCheckInterval)
+	}
 
 	// start the watch loop to take a job from the queue for each time
 	go func(done <-chan struct{}, jc chan<- *AllocatedJob, q *fifo.Queue[*AllocatedJob]) {
 		defer close(jc)
-		sleep := func() {
-			time.Sleep(SharedPondCheckInterval)
-		}
 
 		rd := 0
 		for {
@@ -303,7 +306,7 @@ func (p *Pond) startSharedWatch() {
 
 			select {
 			case <-done:
-				l.Debugw("watch done", "round", rd)
+				ll.Debugw("watch done")
 				return
 			default:
 				var (
@@ -342,7 +345,7 @@ func (p *Pond) startSharedWatch() {
 						outs[i], outs[j] = outs[j], outs[i]
 					})
 
-					// check each external queue for only one job
+					// pick one job from each external queue
 					jobCnt := 0
 					for idx, out := range outs {
 						if ja, err := out.TryDequeue(); err == nil {
@@ -364,29 +367,7 @@ func (p *Pond) startSharedWatch() {
 	}(dc, jc, p.queue)
 
 	// start the working loop to submit the job
-	go func(done <-chan struct{}, jc <-chan *AllocatedJob, pl *ants.Pool) {
-		for {
-			select {
-			case <-done:
-				l.Debug("submit done")
-				return
-			case ja, ok := <-jc:
-				if !ok {
-					return
-				}
-				jid := ja.Job.ID()
-				if err := pl.Submit(func() {
-					l.Debugw("☑️ job starts in shared pool", "job_id", jid, "start_count", p.cntStart.Inc(), "queue_time", time.Since(ja.SubmitAt))
-					<-ja.readyProc
-					l.Debugw("🚀 job is ready to proceed in shared pool", "job_id", jid)
-					ja.Job.Proceed()
-					l.Debugw("🏁 job completes in shared pool", "job_id", jid, "done_count", p.cntDone.Inc())
-				}); err != nil {
-					l.Warnw("⚠️ failed to submit job to shared pool", "job_id", jid, zap.Error(err))
-				}
-			}
-		}
-	}(dc, jc, p.pool)
+	go p.startJobSubmissionLoop(l.With("pond_type", "shared"), dc, jc, p.pool)
 }
 
 func createPool(size int) *ants.Pool {
