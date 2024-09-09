@@ -115,11 +115,12 @@ func (m *Manager) Dispatch(j Job) error {
 	if !al.IsShared {
 		grp.InitializePond(al.PondID, al.QueueSize, al.PoolSize)
 	}
+	grp.cntRecv.Inc()
 
 	// get the pond and submit the job
 	pd := grp.GetPond(al.PondID)
 	if pd == nil {
-		l.Warnw("pond not found", "pond_id", al.PondID)
+		l.Warnw("pond not found", "pond_id", al.PondID) // it won't happen actually
 		return err
 	}
 	if err := pd.Submit(j); err != nil {
@@ -127,6 +128,8 @@ func (m *Manager) Dispatch(j Job) error {
 		return err
 	}
 
+	// success
+	grp.cntEnque.Inc()
 	return nil
 }
 

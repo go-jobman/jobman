@@ -43,7 +43,7 @@ func (g *Group) String() string {
 	return fmt.Sprintf(
 		"🔀Group[%s]{Ponds:%d Received:%d Enqueued:%d}",
 		g.name,
-		len(g.partPonds)+1,
+		len(g.partPonds)+1, // add 1 for shared pond
 		g.cntRecv.Load(),
 		g.cntEnque.Load(),
 	)

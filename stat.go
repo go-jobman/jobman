@@ -1,5 +1,6 @@
 package jobman
 
+// PondStat represents the statistics of a pond.
 type PondStat struct {
 	ReceivedCount  int64 `json:"job_received"`
 	EnqueuedCount  int64 `json:"job_enqueued"`
@@ -29,5 +30,30 @@ func (p *Pond) GetStat() *PondStat {
 		QueueFree:      qf,
 		PoolCapacity:   p.pool.Cap(),
 		PoolFree:       p.pool.Free(),
+	}
+}
+
+// GroupStat represents the statistics of a group.
+type GroupStat struct {
+	ReceivedCount int64                `json:"job_received"`
+	EnqueuedCount int64                `json:"job_enqueued"`
+	PondCapacity  int                  `json:"pond_cap"`
+	PondStats     map[string]*PondStat `json:"pond_stats"`
+}
+
+// GetStat returns the statistics of the group.
+func (g *Group) GetStat() *GroupStat {
+	g.RLock()
+	defer g.RUnlock()
+
+	ps := make(map[string]*PondStat, len(g.partPonds)+1)
+	for k, v := range g.partPonds {
+		ps[k] = v.GetStat()
+	}
+	return &GroupStat{
+		ReceivedCount: g.cntRecv.Load(),
+		EnqueuedCount: g.cntEnque.Load(),
+		PondCapacity:  len(g.partPonds) + 1, // add 1 for shared pond
+		PondStats:     ps,
 	}
 }
