@@ -46,14 +46,16 @@ func (g *Group) GetStat() *GroupStat {
 	g.RLock()
 	defer g.RUnlock()
 
-	ps := make(map[string]*PondStat, len(g.partPonds)+1)
+	pc := len(g.partPonds) + 1 // add 1 for shared pond
+	ps := make(map[string]*PondStat, pc)
 	for k, v := range g.partPonds {
 		ps[k] = v.GetStat()
 	}
+	ps["_shared_"] = g.sharedPond.GetStat()
 	return &GroupStat{
 		ReceivedCount: g.cntRecv.Load(),
 		EnqueuedCount: g.cntEnque.Load(),
-		PondCapacity:  len(g.partPonds) + 1, // add 1 for shared pond
+		PondCapacity:  pc,
 		PondStats:     ps,
 	}
 }

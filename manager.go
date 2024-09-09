@@ -125,16 +125,16 @@ func (m *Manager) Dispatch(j Job) error {
 	// get the pond and submit the job
 	pd := grp.GetPond(al.PondID)
 	if pd == nil {
-		l.Warnw("pond not found", "pond_id", al.PondID) // it won't happen actually
+		l.Warnw("pond not found", "group_id", al.GroupID, "pond_id", al.PondID) // it won't happen actually
 		return err
 	}
 	if err := pd.Submit(j); err != nil {
-		l.Warnw("dispatch failed", zap.Error(err))
+		l.Warnw("job dispatch failed", "group_id", al.GroupID, "pond_id", al.PondID, zap.Error(err))
 		return err
 	}
 
 	// success
-	grp.cntEnque.Inc()
+	l.Infow("job dispatched successfully", "group_id", al.GroupID, "pond_id", al.PondID, "group_count", grp.cntEnque.Inc())
 	return nil
 }
 
