@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"sync"
 
+	"go.uber.org/atomic"
 	"go.uber.org/zap"
 )
 
@@ -14,6 +15,8 @@ type Manager struct {
 	name   string
 	alloc  AllocatorFunc
 	groups map[string]*Group
+	// counters
+	cntRecv atomic.Int64
 }
 
 // NewManager creates a new Manager with the specified name.
@@ -37,9 +40,10 @@ func NewManager(name string) *Manager {
 
 func (m *Manager) String() string {
 	return fmt.Sprintf(
-		"📨Manager[%s]{Groups:%d}",
+		"📨Manager[%s]{Groups:%d Received:%d}",
 		m.name,
 		len(m.groups),
+		m.cntRecv.Load(),
 	)
 }
 
@@ -78,8 +82,9 @@ func (m *Manager) Dispatch(j Job) error {
 	}
 
 	// basic
-	l := m.lg.With(zap.String("method", "submit"), zap.String("job_id", j.ID()))
-	l.Debug("try to submit job")
+	mgrIdx := m.cntRecv.Inc()
+	l := m.lg.With(zap.String("method", "dispatch"), zap.Int64("mgr_idx", mgrIdx), zap.String("job_id", j.ID()))
+	l.Debug("try to dispatch job")
 
 	// get identifier for job
 	al, err := m.alloc(j.Group(), j.Partition())

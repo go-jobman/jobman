@@ -57,3 +57,26 @@ func (g *Group) GetStat() *GroupStat {
 		PondStats:     ps,
 	}
 }
+
+// ManagerStat represents the statistics of a manager.
+type ManagerStat struct {
+	ReceivedCount int64                 `json:"job_received"`
+	GroupCapacity int                   `json:"group_cap"`
+	GroupStats    map[string]*GroupStat `json:"group_stats"`
+}
+
+// GetStat returns the statistics of the manager.
+func (m *Manager) GetStat() *ManagerStat {
+	m.RLock()
+	defer m.RUnlock()
+
+	gs := make(map[string]*GroupStat, len(m.groups))
+	for k, v := range m.groups {
+		gs[k] = v.GetStat()
+	}
+	return &ManagerStat{
+		ReceivedCount: m.cntRecv.Load(),
+		GroupCapacity: len(m.groups),
+		GroupStats:    gs,
+	}
+}
