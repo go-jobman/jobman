@@ -1,7 +1,6 @@
 package jobman
 
 import (
-	"errors"
 	"time"
 )
 
@@ -46,23 +45,3 @@ type AllocatedJob struct {
 	SubmitAt  time.Time
 	Job       Job
 }
-
-var (
-	// ErrJobNil is an error that indicates that the job is nil.
-	ErrJobNil = errors.New("job is nil")
-	// ErrPondClosed is an error that indicates that the pond is closed.
-	ErrPondClosed = errors.New("pond is closed")
-	// ErrGroupNotFound is an error that indicates that the specified group was not found.
-	ErrGroupNotFound = errors.New("group not found")
-	// ErrPondNotFound is an error that indicates that the specified pond was not found.
-	ErrPondNotFound = errors.New("pond not found")
-)
-
-var (
-	// SharedPondCheckInterval defines the interval for checking the shared pond.
-	SharedPondCheckInterval = 100 * time.Millisecond
-	// SharedPondDequeueRetryInterval defines the interval for retrying dequeue operations in the shared pond.
-	SharedPondDequeueRetryInterval = 30 * time.Millisecond
-	// SharedPondDequeueRetryLimit defines the maximum number of retry attempts for dequeue operations in the shared pond.
-	SharedPondDequeueRetryLimit = uint(3)
-)
