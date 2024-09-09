@@ -41,11 +41,6 @@ func (p *Pond) String() string {
 	return fmt.Sprintf("🗳️Pond{Name:%s Queue:%d Pool:%d Shared:%t}", p.name, p.queueSize, p.poolSize, p.isShared)
 }
 
-func createPool(size int) *ants.Pool {
-	pl, _ := ants.NewPool(size, ants.WithNonblocking(false))
-	return pl
-}
-
 // NewPartitionPond creates a new partition pond with the specified queue and pool size.
 func NewPartitionPond(name string, queueSize, poolSize int) *Pond {
 	ctx, cl := context.WithCancel(context.Background())
@@ -371,4 +366,19 @@ func (p *Pond) startSharedWatch() {
 			}
 		}
 	}(dc, jc, p.pool)
+}
+
+func createPool(size int) *ants.Pool {
+	pl, _ := ants.NewPool(size, ants.WithNonblocking(false))
+	return pl
+}
+
+func getPondName(ids ...string) string {
+	if len(ids) == 0 {
+		return "_pond_"
+	}
+	if len(ids) == 1 {
+		return ids[0] + "|_shared_"
+	}
+	return ids[0] + "|" + ids[1]
 }

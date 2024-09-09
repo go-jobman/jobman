@@ -38,16 +38,6 @@ func NewGroup(name string, sharedQueue, sharedPool int) *Group {
 	}
 }
 
-func getPondName(ids ...string) string {
-	if len(ids) == 0 {
-		return "_pond_"
-	}
-	if len(ids) == 1 {
-		return ids[0] + "|_shared_"
-	}
-	return ids[0] + "|" + ids[1]
-}
-
 // InitializePartitionPond initializes the pond for the given partition.
 func (g *Group) InitializePartitionPond(partition string, queueSize, poolSize int) {
 	g.Lock()
