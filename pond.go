@@ -1,16 +1,17 @@
 package jobman
 
 import (
-	"bitbucket.org/ai69/amoy"
 	"context"
 	"fmt"
+	"sync"
+	"time"
+
+	"bitbucket.org/ai69/amoy"
 	"github.com/1set/gut/yrand"
 	"github.com/panjf2000/ants/v2"
 	"go.uber.org/atomic"
 	"go.uber.org/zap"
 	"gopkg.in/fifo.v0"
-	"sync"
-	"time"
 )
 
 type Pond struct {
@@ -160,9 +161,7 @@ func (p *Pond) Submit(j Job) error {
 		// notify the job is rejected
 		go func() {
 			defer close(ja.readyProc)
-			if j.OnRejected != nil {
-				j.OnRejected()
-			}
+			j.OnRejected()
 		}()
 
 		return err
@@ -175,9 +174,7 @@ func (p *Pond) Submit(j Job) error {
 	// notify the job is accepted
 	go func() {
 		defer close(ja.readyProc)
-		if j.OnAccepted != nil {
-			j.OnAccepted()
-		}
+		j.OnAccepted()
 	}()
 
 	// return nil if the job is submitted successfully
@@ -259,9 +256,8 @@ func (p *Pond) startPartitionWatch() {
 				if err := pl.Submit(func() {
 					l.Debugw("✅ partition job starts in partition pool", "job_id", jid, "start_count", p.cntStart.Inc(), "queue_time", time.Since(ja.SubmitAt))
 					<-ja.readyProc
-					if j := ja.Job; j.Proceed != nil {
-						j.Proceed()
-					}
+					l.Debugw("🚀 job is ready to proceed in shared pool", "job_id", jid)
+					ja.Job.Proceed()
 					l.Debugw("🏁 partition job completes in partition pool", "job_id", jid, "done_count", p.cntDone.Inc())
 				}); err != nil {
 					l.Warnw("⚠️ failed to submit partition job to partition pool", "job_id", jid, zap.Error(err))
@@ -366,9 +362,8 @@ func (p *Pond) startSharedWatch() {
 				if err := pl.Submit(func() {
 					l.Debugw("☑️ job starts in shared pool", "job_id", jid, "start_count", p.cntStart.Inc())
 					<-ja.readyProc
-					if j := ja.Job; j.Proceed != nil {
-						j.Proceed()
-					}
+					l.Debugw("🚀 job is ready to proceed in shared pool", "job_id", jid)
+					ja.Job.Proceed()
 					l.Debugw("🏁 job completes in shared pool", "job_id", jid, "done_count", p.cntDone.Inc())
 				}); err != nil {
 					l.Warnw("⚠️ failed to submit job to shared pool", "job_id", jid, zap.Error(err))
