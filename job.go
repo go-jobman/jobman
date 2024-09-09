@@ -46,12 +46,17 @@ type AllocatedJob struct {
 }
 
 var (
-	ErrJobNil     = errors.New("job is nil")
+	// ErrJobNil is an error that indicates that the job is nil.
+	ErrJobNil = errors.New("job is nil")
+	// ErrClosedPond is an error that indicates that the pond is closed.
 	ErrClosedPond = errors.New("pond is closed")
 )
 
 var (
-	SharedPondCheckInterval        = 100 * time.Millisecond
+	// SharedPondCheckInterval defines the interval for checking the shared pond.
+	SharedPondCheckInterval = 100 * time.Millisecond
+	// SharedPondDequeueRetryInterval defines the interval for retrying dequeue operations in the shared pond.
 	SharedPondDequeueRetryInterval = 30 * time.Millisecond
-	SharedPondDequeueRetryLimit    = uint(3)
+	// SharedPondDequeueRetryLimit defines the maximum number of retry attempts for dequeue operations in the shared pond.
+	SharedPondDequeueRetryLimit = uint(3)
 )
