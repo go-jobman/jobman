@@ -1,12 +1,13 @@
 package jobman
 
 import (
-	"go.uber.org/zap"
 	"sync"
+
+	"go.uber.org/zap"
 )
 
-// Hub is the main entry point for submitting batch jobs.
-type Hub struct {
+// Manager is the main entry point for submitting batch jobs.
+type Manager struct {
 	sync.RWMutex
 	lg     *zap.SugaredLogger
 	name   string
@@ -14,10 +15,10 @@ type Hub struct {
 	groups map[string]*Group
 }
 
-// NewHub creates a new Hub with the specified name.
-func NewHub(name string) *Hub {
-	return &Hub{
-		lg:   log.With("hub", name),
+// NewManager creates a new Manager with the specified name.
+func NewManager(name string) *Manager {
+	return &Manager{
+		lg:   log.With("manager", name),
 		name: name,
 		alloc: func(group, partition string) (Allocation, error) {
 			return Allocation{
@@ -33,25 +34,45 @@ func NewHub(name string) *Hub {
 }
 
 // SetAllocator sets the allocator function for the hub.
-func (h *Hub) SetAllocator(a AllocatorFunc) {
-	h.Lock()
-	defer h.Unlock()
+func (m *Manager) SetAllocator(a AllocatorFunc) {
+	m.Lock()
+	defer m.Unlock()
 
-	h.alloc = a
+	m.alloc = a
+}
+
+// ResizeQueue resizes the queue of the pond in the specified group.
+func (m *Manager) ResizeQueue(group, tenant string, newSize int) error {
+	pd, err := m.findPond(group, tenant)
+	if err != nil {
+		return err
+	}
+	pd.ResizeQueue(newSize)
+	return nil
+}
+
+// ResizePool resizes the pool of the pond in the specified group.
+func (m *Manager) ResizePool(group, tenant string, newSize int) error {
+	pd, err := m.findPond(group, tenant)
+	if err != nil {
+		return err
+	}
+	pd.ResizePool(newSize)
+	return nil
 }
 
 // Submit submits a job to the pond of the specified group in the hub.
-func (h *Hub) Submit(j Job) error {
+func (m *Manager) Submit(j Job) error {
 	if j == nil {
 		return ErrJobNil
 	}
 
 	// basic
-	l := h.lg.With(zap.String("method", "submit"), zap.String("job_id", j.ID()))
+	l := m.lg.With(zap.String("method", "submit"), zap.String("job_id", j.ID()))
 	l.Debug("try to submit job")
 
 	// get identifier for job
-	al, err := h.alloc(j.Group(), j.Partition())
+	al, err := m.alloc(j.Group(), j.Partition())
 	if err != nil {
 		l.Warnw("allocation failed", zap.Error(err))
 		return err
@@ -59,11 +80,11 @@ func (h *Hub) Submit(j Job) error {
 	l.Debugw("got allocation", "allocation", al)
 
 	// lock for the group
-	h.Lock()
-	defer h.Unlock()
+	m.Lock()
+	defer m.Unlock()
 
 	// find the group for the job or create a new group
-	grp, ok := h.groups[al.GroupID]
+	grp, ok := m.groups[al.GroupID]
 	if !ok {
 		l.Debugw("creating new group", "group_id", al.GroupID)
 		// get shared pool allocation
@@ -71,13 +92,13 @@ func (h *Hub) Submit(j Job) error {
 		if al.IsShared {
 			sl = al
 		} else {
-			if sl, err = h.alloc(j.Group(), ""); err != nil {
+			if sl, err = m.alloc(j.Group(), ""); err != nil {
 				l.Warnw("allocation for shared failed", zap.Error(err))
 				return err
 			}
 		}
 		grp = NewGroup(sl.GroupID, sl.QueueSize, sl.PoolSize)
-		h.groups[sl.GroupID] = grp
+		m.groups[sl.GroupID] = grp
 	}
 
 	// initialize the pool if not shared
@@ -96,18 +117,15 @@ func (h *Hub) Submit(j Job) error {
 		return err
 	}
 
-	// if accepted, save in db and hub, and return
-	// TODO: save in DB
-
 	return nil
 }
 
 // findPond is a helper method to find the pond via group and tenant.
-func (h *Hub) findPond(group, tenant string) (*Pond, error) {
-	h.RLock()
-	defer h.RUnlock()
+func (m *Manager) findPond(group, tenant string) (*Pond, error) {
+	m.RLock()
+	defer m.RUnlock()
 
-	grp, ok := h.groups[group]
+	grp, ok := m.groups[group]
 	if !ok {
 		log.Warnw("group not found", "group", group)
 		return nil, ErrGroupNotFound
@@ -118,24 +136,4 @@ func (h *Hub) findPond(group, tenant string) (*Pond, error) {
 		return nil, ErrPondNotFound
 	}
 	return pd, nil
-}
-
-// ResizeQueue resizes the queue of the pond in the specified group.
-func (h *Hub) ResizeQueue(group, tenant string, newSize int) error {
-	pd, err := h.findPond(group, tenant)
-	if err != nil {
-		return err
-	}
-	pd.ResizeQueue(newSize)
-	return nil
-}
-
-// ResizePool resizes the pool of the pond in the specified group.
-func (h *Hub) ResizePool(group, tenant string, newSize int) error {
-	pd, err := h.findPond(group, tenant)
-	if err != nil {
-		return err
-	}
-	pd.ResizePool(newSize)
-	return nil
 }
