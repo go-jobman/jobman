@@ -15,6 +15,10 @@ func TestNewManager(t *testing.T) {
 	if manager.String() != "📨Manager[test-manager](Groups:0,Received:0)" {
 		t.Errorf("unexpected string representation: %s", manager.String())
 	}
+
+	if manager.GetName() != "test-manager" {
+		t.Errorf("expected manager name: %s, got: %s", "test-manager", manager.GetName())
+	}
 }
 
 func TestManager_SetAllocator(t *testing.T) {

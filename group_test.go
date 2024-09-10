@@ -15,6 +15,10 @@ func TestNewGroup(t *testing.T) {
 	if group.String() != "🗂️Group[test-group](Ponds:1,Received:0,Enqueued:0)" {
 		t.Errorf("unexpected string representation: %s", group.String())
 	}
+
+	if group.GetID() != "test-group" {
+		t.Errorf("expected group ID: %s, got: %s", "test-group", group.GetID())
+	}
 }
 
 func TestGroup_InitializePond(t *testing.T) {

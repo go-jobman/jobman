@@ -16,6 +16,10 @@ func TestNewPartitionPond(t *testing.T) {
 	if pond.String() != "🗳️Pond[test-pond](Shared:✘,Queue:10,Pool:5)" {
 		t.Errorf("unexpected string representation: %s", pond.String())
 	}
+
+	if pond.GetID() != "test-pond" {
+		t.Errorf("expected pond ID: %s, got: %s", "test-pond", pond.GetID())
+	}
 }
 
 func TestNewSharedPond(t *testing.T) {
