@@ -9,8 +9,8 @@ type Job interface {
 	ID() string        // Return the unique identifier for the job.
 	Group() string     // Return the group id of the job that the job belongs to.
 	Partition() string // Return the partition id of the job (if any), empty string for shared partition.
-	OnAccepted()       // Called when the job is submitted successfully to a pond if it's not nil.
-	OnRejected()       // Called when the job is rejected by a pond if it's not nil.
+	OnAccepted()       // Called when the job is submitted successfully to a pond.
+	OnRejected()       // Called when the job is rejected by a pond.
 	Proceed()          // Called when the job is about to be executed by a worker.
 }
 
