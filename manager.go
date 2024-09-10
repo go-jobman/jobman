@@ -77,8 +77,14 @@ func (m *Manager) ResizePool(group, partition string, newSize int) error {
 
 // Dispatch submits a job to the pond of the specified group in the manager.
 func (m *Manager) Dispatch(j Job) error {
+	_, err := m.DispatchWithAllocation(j)
+	return err
+}
+
+// DispatchWithAllocation submits a job to the pond of the specified group in the manager and returns the allocation result and error.
+func (m *Manager) DispatchWithAllocation(j Job) (*Allocation, error) {
 	if j == nil {
-		return ErrJobNil
+		return nil, ErrJobNil
 	}
 
 	// basic
@@ -89,12 +95,12 @@ func (m *Manager) Dispatch(j Job) error {
 	// get allocation for the job
 	if m.alloc == nil {
 		l.Warn("allocator not set")
-		return ErrAllocatorNotSet
+		return nil, ErrAllocatorNotSet
 	}
 	al, err := m.alloc(j.Group(), j.Partition())
 	if err != nil {
 		l.Warnw("allocation failed", zap.Error(err))
-		return err
+		return nil, err
 	}
 	l.Debugw("got allocation", "allocation", al)
 
@@ -113,7 +119,7 @@ func (m *Manager) Dispatch(j Job) error {
 		} else {
 			if sl, err = m.alloc(j.Group(), ""); err != nil {
 				l.Warnw("allocation for shared failed", zap.Error(err))
-				return err
+				return nil, err
 			}
 		}
 		grp = NewGroup(sl.GroupID, sl.QueueSize, sl.PoolSize)
@@ -130,16 +136,16 @@ func (m *Manager) Dispatch(j Job) error {
 	pd := grp.GetPond(al.PondID)
 	if pd == nil {
 		l.Warnw("pond not found", "group_id", al.GroupID, "pond_id", al.PondID) // it won't happen actually
-		return err
+		return nil, err
 	}
 	if err := pd.Submit(j); err != nil {
 		l.Warnw("job dispatch failed", "group_id", al.GroupID, "pond_id", al.PondID, zap.Error(err))
-		return err
+		return nil, err
 	}
 
 	// success
 	l.Infow("job dispatched successfully", "group_id", al.GroupID, "pond_id", al.PondID, "group_count", grp.cntEnque.Inc())
-	return nil
+	return &al, nil
 }
 
 // findPond is a helper method to find the pond via group and partition.
