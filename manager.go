@@ -52,34 +52,6 @@ func (m *Manager) GetName() string {
 	return m.name
 }
 
-// SetAllocator sets the allocator function for the manager.
-func (m *Manager) SetAllocator(a AllocatorFunc) {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-
-	m.alloc = a
-}
-
-// ResizeQueue resizes the queue of the pond in the specified group.
-func (m *Manager) ResizeQueue(group, partition string, newSize int) error {
-	pd, err := m.GetPond(group, partition)
-	if err != nil {
-		return err
-	}
-	pd.ResizeQueue(newSize)
-	return nil
-}
-
-// ResizePool resizes the pool of the pond in the specified group.
-func (m *Manager) ResizePool(group, partition string, newSize int) error {
-	pd, err := m.GetPond(group, partition)
-	if err != nil {
-		return err
-	}
-	pd.ResizePool(newSize)
-	return nil
-}
-
 // GetPond is a helper method to find the pond via group and partition.
 func (m *Manager) GetPond(group, partition string) (*Pond, error) {
 	m.mu.RLock()
@@ -109,6 +81,34 @@ func (m *Manager) GetGroup(group string) (*Group, error) {
 		return nil, ErrGroupNotFound
 	}
 	return grp, nil
+}
+
+// SetAllocator sets the allocator function for the manager.
+func (m *Manager) SetAllocator(a AllocatorFunc) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	m.alloc = a
+}
+
+// ResizeQueue resizes the queue of the pond in the specified group.
+func (m *Manager) ResizeQueue(group, partition string, newSize int) error {
+	pd, err := m.GetPond(group, partition)
+	if err != nil {
+		return err
+	}
+	pd.ResizeQueue(newSize)
+	return nil
+}
+
+// ResizePool resizes the pool of the pond in the specified group.
+func (m *Manager) ResizePool(group, partition string, newSize int) error {
+	pd, err := m.GetPond(group, partition)
+	if err != nil {
+		return err
+	}
+	pd.ResizePool(newSize)
+	return nil
 }
 
 // Dispatch submits a job to the pond of the specified group in the manager.

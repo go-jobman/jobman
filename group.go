@@ -56,7 +56,7 @@ func (g *Group) GetID() string {
 	return g.id
 }
 
-// GetPond returns the pond for the given partition.
+// GetPond returns the pond in the group for the given partition. If partition is empty, it returns the shared pond.
 func (g *Group) GetPond(partition string) *Pond {
 	g.mu.RLock()
 	defer g.mu.RUnlock()

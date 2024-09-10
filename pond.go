@@ -91,6 +91,16 @@ func (p *Pond) GetID() string {
 	return p.id
 }
 
+// GetQueue returns the queue of the pond.
+func (p *Pond) GetQueue() *fifo.Queue[*allocatedJob] {
+	return p.queue
+}
+
+// GetPool returns the pool of the pond.
+func (p *Pond) GetPool() *ants.Pool {
+	return p.pool
+}
+
 // Close closes the pond and releases all resources.
 func (p *Pond) Close() {
 	p.mu.Lock()
@@ -204,16 +214,6 @@ func (p *Pond) Subscribe(q *fifo.Queue[*allocatedJob]) {
 		return
 	}
 	p.extQueues = append(p.extQueues, q)
-}
-
-// GetQueue returns the queue of the pond.
-func (p *Pond) GetQueue() *fifo.Queue[*allocatedJob] {
-	return p.queue
-}
-
-// GetPool returns the pool of the pond.
-func (p *Pond) GetPool() *ants.Pool {
-	return p.pool
 }
 
 // StartPartitionWatchAsync starts the pond watch loop asynchronously.
