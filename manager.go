@@ -19,7 +19,7 @@ type Manager struct {
 	cntRecv atomic.Int64
 }
 
-// NewManager creates a new Manager with the specified name.
+// NewManager creates a new Manager with the specified id.
 func NewManager(name string) *Manager {
 	return &Manager{
 		lg:   log.With("manager", name),
@@ -45,6 +45,11 @@ func (m *Manager) String() string {
 		len(m.groups),
 		m.cntRecv.Load(),
 	)
+}
+
+// GetName returns the id of the manager.
+func (m *Manager) GetName() string {
+	return m.name
 }
 
 // SetAllocator sets the allocator function for the manager.
