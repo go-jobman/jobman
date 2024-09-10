@@ -57,7 +57,7 @@ func (m *Manager) SetAllocator(a AllocatorFunc) {
 
 // ResizeQueue resizes the queue of the pond in the specified group.
 func (m *Manager) ResizeQueue(group, partition string, newSize int) error {
-	pd, err := m.findPond(group, partition)
+	pd, err := m.GetPond(group, partition)
 	if err != nil {
 		return err
 	}
@@ -67,12 +67,43 @@ func (m *Manager) ResizeQueue(group, partition string, newSize int) error {
 
 // ResizePool resizes the pool of the pond in the specified group.
 func (m *Manager) ResizePool(group, partition string, newSize int) error {
-	pd, err := m.findPond(group, partition)
+	pd, err := m.GetPond(group, partition)
 	if err != nil {
 		return err
 	}
 	pd.ResizePool(newSize)
 	return nil
+}
+
+// GetPond is a helper method to find the pond via group and partition.
+func (m *Manager) GetPond(group, partition string) (*Pond, error) {
+	m.RLock()
+	defer m.RUnlock()
+
+	grp, ok := m.groups[group]
+	if !ok {
+		log.Warnw("group not found", "group", group)
+		return nil, ErrGroupNotFound
+	}
+	pd := grp.GetPond(partition)
+	if pd == nil {
+		log.Warnw("pond not found", "group", group, "partition", partition)
+		return nil, ErrPondNotFound
+	}
+	return pd, nil
+}
+
+// GetGroup is a helper method to find the group via group id.
+func (m *Manager) GetGroup(group string) (*Group, error) {
+	m.RLock()
+	defer m.RUnlock()
+
+	grp, ok := m.groups[group]
+	if !ok {
+		log.Warnw("group not found", "group", group)
+		return nil, ErrGroupNotFound
+	}
+	return grp, nil
 }
 
 // Dispatch submits a job to the pond of the specified group in the manager.
@@ -146,22 +177,4 @@ func (m *Manager) DispatchWithAllocation(j Job) (*Allocation, error) {
 	// success
 	l.Infow("job dispatched successfully", "group_id", al.GroupID, "pond_id", al.PondID, "group_count", grp.cntEnque.Inc())
 	return &al, nil
-}
-
-// findPond is a helper method to find the pond via group and partition.
-func (m *Manager) findPond(group, partition string) (*Pond, error) {
-	m.RLock()
-	defer m.RUnlock()
-
-	grp, ok := m.groups[group]
-	if !ok {
-		log.Warnw("group not found", "group", group)
-		return nil, ErrGroupNotFound
-	}
-	pd := grp.GetPond(partition)
-	if pd == nil {
-		log.Warnw("pond not found", "group", group, "partition", partition)
-		return nil, ErrPondNotFound
-	}
-	return pd, nil
 }
