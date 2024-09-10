@@ -164,10 +164,13 @@ func (m *Manager) DispatchWithAllocation(j Job) (*Allocation, error) {
 	grp.cntRecv.Inc()
 
 	// get the pond and submit the job
+	if al.IsShared {
+		al.PondID = "" // reset the pond id for the shared pool
+	}
 	pd := grp.GetPond(al.PondID)
 	if pd == nil {
-		l.Warnw("pond not found", "group_id", al.GroupID, "pond_id", al.PondID) // it won't happen actually
-		return nil, err
+		l.Warnw("pond not found", "group_id", al.GroupID, "pond_id", al.PondID) // it should not happen
+		return nil, ErrPondNotFound
 	}
 	if err := pd.Submit(j); err != nil {
 		l.Warnw("job dispatch failed", "group_id", al.GroupID, "pond_id", al.PondID, zap.Error(err))
