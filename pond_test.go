@@ -8,46 +8,90 @@ import (
 )
 
 func TestNewPartitionPond(t *testing.T) {
-	pond := jobman.NewPartitionPond("test-pond", 10, 5)
+	pond := jobman.NewPartitionPond("test-pond1", 10, 5)
 	if pond == nil {
 		t.Fatal("expected pond to be created, got nil")
 	}
 
-	if pond.String() != "🗳️Pond[test-pond](Shared:✘,Queue:10,Pool:5)" {
+	if pond.String() != "🗳️Pond[test-pond1](Shared:✘,Queue:10,Pool:5)" {
 		t.Errorf("unexpected string representation: %s", pond.String())
 	}
 
-	if pond.GetID() != "test-pond" {
+	if pond.GetID() != "test-pond1" {
 		t.Errorf("expected pond ID: %s, got: %s", "test-pond", pond.GetID())
 	}
 }
 
 func TestNewSharedPond(t *testing.T) {
-	pond := jobman.NewSharedPond("test-pond", 10, 5)
+	pond := jobman.NewSharedPond("test-pond0", 10, 5)
 	if pond == nil {
 		t.Fatal("expected pond to be created, got nil")
 	}
 
-	if pond.String() != "🗳️Pond[test-pond](Shared:✔,Queue:10,Pool:5)" {
+	if pond.String() != "🗳️Pond[test-pond0](Shared:✔,Queue:10,Pool:5)" {
 		t.Errorf("unexpected string representation: %s", pond.String())
+	}
+
+	if pond.GetID() != "test-pond0" {
+		t.Errorf("expected pond ID: %s, got: %s", "test-pond", pond.GetID())
 	}
 }
 
 func TestPond_ResizeQueue(t *testing.T) {
 	pond := jobman.NewPartitionPond("test-pond", 10, 5)
 
+	// Resize to a larger size
 	pond.ResizeQueue(20)
 	if pond.GetQueue().Cap() != 20 {
 		t.Errorf("expected queue capacity: %d, got: %d", 20, pond.GetQueue().Cap())
+	}
+
+	// Resize to a smaller size
+	pond.ResizeQueue(5)
+	if pond.GetQueue().Cap() != 5 {
+		t.Errorf("expected queue capacity: %d, got: %d", 5, pond.GetQueue().Cap())
+	}
+
+	// Resize to the same size (no-op)
+	pond.ResizeQueue(5)
+	if pond.GetQueue().Cap() != 5 {
+		t.Errorf("expected queue capacity: %d, got: %d", 5, pond.GetQueue().Cap())
+	}
+
+	// Resize a closed pond
+	pond.Close()
+	pond.ResizeQueue(15)
+	if pond.GetQueue().Cap() != 5 { // Should remain the same as before close
+		t.Errorf("expected queue capacity after close: %d, got: %d", 5, pond.GetQueue().Cap())
 	}
 }
 
 func TestPond_ResizePool(t *testing.T) {
 	pond := jobman.NewPartitionPond("test-pond", 10, 5)
 
+	// Resize to a larger size
 	pond.ResizePool(10)
 	if pond.GetPool().Cap() != 10 {
 		t.Errorf("expected pool capacity: %d, got: %d", 10, pond.GetPool().Cap())
+	}
+
+	// Resize to a smaller size
+	pond.ResizePool(3)
+	if pond.GetPool().Cap() != 3 {
+		t.Errorf("expected pool capacity: %d, got: %d", 3, pond.GetPool().Cap())
+	}
+
+	// Resize to the same size (no-op)
+	pond.ResizePool(3)
+	if pond.GetPool().Cap() != 3 {
+		t.Errorf("expected pool capacity: %d, got: %d", 3, pond.GetPool().Cap())
+	}
+
+	// Resize a closed pond
+	pond.Close()
+	pond.ResizePool(7)
+	if pond.GetPool().Cap() != 3 { // Should remain the same as before close
+		t.Errorf("expected pool capacity after close: %d, got: %d", 3, pond.GetPool().Cap())
 	}
 }
 
