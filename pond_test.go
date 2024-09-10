@@ -174,6 +174,13 @@ func TestPond_Subscribe(t *testing.T) {
 	if l := len(sharedPond.GetExternalQueues()); l != 1 {
 		t.Fatalf("expected external queue to be subscribed, got: %d", l)
 	}
+
+	sharedPond.Close()
+	anotherPond := jobman.NewPartitionPond("another-pond", 10, 5)
+	sharedPond.Subscribe(anotherPond.GetQueue())
+	if l := len(sharedPond.GetExternalQueues()); l != 1 {
+		t.Fatalf("expected no new external queue to be subscribed, got: %d", l)
+	}
 }
 
 func TestPond_StartPartitionWatchAsync(t *testing.T) {
