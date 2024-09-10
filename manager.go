@@ -82,12 +82,12 @@ func (m *Manager) GetPond(group, partition string) (*Pond, error) {
 
 	grp, ok := m.groups[group]
 	if !ok {
-		log.Warnw("group not found", "group", group)
+		m.lg.Warnw("group not found", "group", group)
 		return nil, ErrGroupNotFound
 	}
 	pd := grp.GetPond(partition)
 	if pd == nil {
-		log.Warnw("pond not found", "group", group, "partition", partition)
+		m.lg.Warnw("pond not found", "group", group, "partition", partition)
 		return nil, ErrPondNotFound
 	}
 	return pd, nil
@@ -100,7 +100,7 @@ func (m *Manager) GetGroup(group string) (*Group, error) {
 
 	grp, ok := m.groups[group]
 	if !ok {
-		log.Warnw("group not found", "group", group)
+		m.lg.Warnw("group not found", "group", group)
 		return nil, ErrGroupNotFound
 	}
 	return grp, nil
