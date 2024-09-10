@@ -29,7 +29,7 @@ type Group struct {
 // NewGroup creates a new group of ponds.
 func NewGroup(id string, sharedQueue, sharedPool int) *Group {
 	ctx, cancel := context.WithCancel(context.Background())
-	sp := NewSharedPond(getPondName(id), sharedQueue, sharedPool)
+	sp := NewSharedPond(combinePondID(id), sharedQueue, sharedPool)
 	sp.StartSharedWatchAsync()
 	return &Group{
 		ctx:        ctx,
@@ -83,7 +83,7 @@ func (g *Group) InitializePond(partition string, queueSize, poolSize int) {
 	}
 
 	// create a new partition pond
-	pd := NewPartitionPond(getPondName(g.id, partition), queueSize, poolSize)
+	pd := NewPartitionPond(combinePondID(g.id, partition), queueSize, poolSize)
 	pd.StartPartitionWatchAsync()
 
 	// save the partition pond

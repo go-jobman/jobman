@@ -381,7 +381,7 @@ func createPool(size int) *ants.Pool {
 	return pl
 }
 
-func getPondName(ids ...string) string {
+func combinePondID(ids ...string) string {
 	if len(ids) == 0 {
 		return "_pond_"
 	}
