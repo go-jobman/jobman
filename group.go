@@ -13,7 +13,7 @@ import (
 // It manages the context, logger, and counters for received and enqueued items.
 type Group struct {
 	// basic
-	sync.RWMutex
+	mu     sync.RWMutex
 	ctx    context.Context
 	cancel context.CancelFunc
 	lg     *zap.SugaredLogger
@@ -53,8 +53,8 @@ func (g *Group) String() string {
 
 // InitializePond initializes the pond for the given partition.
 func (g *Group) InitializePond(partition string, queueSize, poolSize int) {
-	g.Lock()
-	defer g.Unlock()
+	g.mu.Lock()
+	defer g.mu.Unlock()
 
 	// empty partition means shared pond, which is already initialized
 	if partition == "" {
@@ -77,8 +77,8 @@ func (g *Group) InitializePond(partition string, queueSize, poolSize int) {
 
 // GetPond returns the pond for the given partition.
 func (g *Group) GetPond(partition string) *Pond {
-	g.RLock()
-	defer g.RUnlock()
+	g.mu.RLock()
+	defer g.mu.RUnlock()
 
 	if partition == "" {
 		return g.sharedPond
