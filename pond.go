@@ -101,11 +101,13 @@ func (p *Pond) GetPool() *ants.Pool {
 	return p.pool
 }
 
-// GetExternalQueues returns the external queues of the pond.
-func (p *Pond) GetExternalQueues() []*fifo.Queue[*allocatedJob] {
+// ListExternalQueues returns the external queues of the pond.
+func (p *Pond) ListExternalQueues() []*fifo.Queue[*allocatedJob] {
 	p.mu.RLock()
 	defer p.mu.RUnlock()
-	return p.extQueues
+	ques := make([]*fifo.Queue[*allocatedJob], len(p.extQueues))
+	copy(ques, p.extQueues)
+	return ques
 }
 
 // Close closes the pond and releases all resources.
