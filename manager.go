@@ -130,7 +130,10 @@ func (m *Manager) DispatchWithAllocation(j Job) (*Allocation, error) {
 	}
 	al, err := m.alloc(j.Group(), j.Partition())
 	if err != nil {
-		l.Warnw("allocation failed", zap.Error(err))
+		l.Warnw("fail to get allocation", zap.Error(err))
+		return nil, err
+	} else if err := al.IsValid(false); err != nil {
+		l.Warnw("got invalid allocation", zap.Error(err))
 		return nil, err
 	}
 	l.Debugw("got allocation", "allocation", al)
@@ -146,10 +149,15 @@ func (m *Manager) DispatchWithAllocation(j Job) (*Allocation, error) {
 		// get shared pool allocation
 		var sl Allocation
 		if al.IsShared {
+			// existing allocation is actually for shared pool
 			sl = al
 		} else {
+			// retrieve a shared pool allocation
 			if sl, err = m.alloc(j.Group(), ""); err != nil {
-				l.Warnw("allocation for shared failed", zap.Error(err))
+				l.Warnw("fail to get allocation for shared", zap.Error(err))
+				return nil, err
+			} else if err := sl.IsValid(true); err != nil {
+				l.Warnw("got invalid allocation for shared", zap.Error(err))
 				return nil, err
 			}
 		}
