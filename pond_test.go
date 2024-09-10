@@ -90,3 +90,78 @@ func TestPond_GetStat(t *testing.T) {
 		t.Errorf("expected enqueued count: %d, got: %d", 1, stat.EnqueuedCount)
 	}
 }
+
+func TestPond_SubmitNilJob(t *testing.T) {
+	pond := jobman.NewPartitionPond("test-pond", 10, 5)
+	err := pond.Submit(nil)
+	if err != jobman.ErrJobNil {
+		t.Fatalf("expected error: %v, got: %v", jobman.ErrJobNil, err)
+	}
+}
+
+func TestPond_SubmitToClosedPond(t *testing.T) {
+	pond := jobman.NewPartitionPond("test-pond", 10, 5)
+	pond.Close()
+	job := &MockJob{id: "job1"}
+	err := pond.Submit(job)
+	if err != jobman.ErrPondClosed {
+		t.Fatalf("expected error: %v, got: %v", jobman.ErrPondClosed, err)
+	}
+}
+
+func TestPond_SubmitJobToFullQueue(t *testing.T) {
+	pond := jobman.NewPartitionPond("test-pond", 1, 5) // Small queue size for testing
+	job1 := &MockJob{id: "job1"}
+	job2 := &MockJob{id: "job2"}
+
+	if err := pond.Submit(job1); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if err := pond.Submit(job2); err == nil {
+		t.Fatal("expected queue full error, got nil")
+	}
+}
+
+func TestPond_Subscribe(t *testing.T) {
+	sharedPond := jobman.NewSharedPond("shared-pond", 10, 5)
+	partPond := jobman.NewPartitionPond("part-pond", 10, 5)
+	sharedPond.Subscribe(partPond.GetQueue())
+
+	if sharedPond.GetQueue().Len() != 0 {
+		t.Fatal("expected external queue to be empty initially")
+	}
+}
+
+func TestPond_StartPartitionWatchAsync(t *testing.T) {
+	pond := jobman.NewPartitionPond("test-pond", 10, 5)
+	pond.StartPartitionWatchAsync()
+	job := &MockJob{id: "job1"}
+
+	if err := pond.Submit(job); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	time.Sleep(50 * time.Millisecond) // allow some time for the handler to proceed
+	if !job.IsAccepted() {
+		t.Error("expected job to be accepted")
+	}
+}
+
+func TestPond_StartSharedWatchAsync(t *testing.T) {
+	sharedPond := jobman.NewSharedPond("shared-pond", 10, 5)
+	partPond := jobman.NewPartitionPond("part-pond", 10, 5)
+	sharedPond.Subscribe(partPond.GetQueue())
+
+	sharedPond.StartSharedWatchAsync()
+	job := &MockJob{id: "job1"}
+
+	if err := partPond.Submit(job); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	time.Sleep(50 * time.Millisecond) // allow some time for the handler to proceed
+	if !job.IsAccepted() {
+		t.Error("expected job to be accepted")
+	}
+}

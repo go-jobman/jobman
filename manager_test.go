@@ -94,3 +94,93 @@ func TestManager_Dispatch(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 }
+
+func TestManager_DispatchWithNilJob(t *testing.T) {
+	manager := jobman.NewManager("test-manager")
+	err := manager.Dispatch(nil)
+	if err != jobman.ErrJobNil {
+		t.Fatalf("expected error: %v, got: %v", jobman.ErrJobNil, err)
+	}
+}
+
+func TestManager_DispatchWithNoAllocator(t *testing.T) {
+	manager := jobman.NewManager("test-manager")
+	manager.SetAllocator(nil)
+	job := &MockJob{id: "job1", group: "group1"}
+	err := manager.Dispatch(job)
+	if err != jobman.ErrAllocatorNotSet {
+		t.Fatalf("expected error: %v, got: %v", jobman.ErrAllocatorNotSet, err)
+	}
+}
+
+func TestManager_DispatchWithInvalidAllocation(t *testing.T) {
+	manager := jobman.NewManager("test-manager")
+	manager.SetAllocator(func(group, partition string) (jobman.Allocation, error) {
+		return jobman.Allocation{
+			GroupID:   "",
+			PondID:    partition,
+			IsShared:  partition == "",
+			QueueSize: 5,
+			PoolSize:  3,
+		}, nil
+	})
+	job := &MockJob{id: "job1", group: "group1"}
+	err := manager.Dispatch(job)
+	if err != jobman.ErrInvalidGroupID {
+		t.Fatalf("expected error: %v, got: %v", jobman.ErrInvalidGroupID, err)
+	}
+}
+
+func TestManager_DispatchWithNewGroup(t *testing.T) {
+	manager := jobman.NewManager("test-manager")
+	manager.SetAllocator(func(group, partition string) (jobman.Allocation, error) {
+		return jobman.Allocation{
+			GroupID:   group,
+			IsShared:  true,
+			QueueSize: 5,
+			PoolSize:  3,
+		}, nil
+	})
+	job := &MockJob{id: "job1", group: "group1"}
+	if err := manager.Dispatch(job); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestManager_DispatchWithExistingGroup(t *testing.T) {
+	manager := jobman.NewManager("test-manager")
+	manager.SetAllocator(func(group, partition string) (jobman.Allocation, error) {
+		return jobman.Allocation{
+			GroupID:   group,
+			IsShared:  true,
+			QueueSize: 5,
+			PoolSize:  3,
+		}, nil
+	})
+	job1 := &MockJob{id: "job1", group: "group1"}
+	if err := manager.Dispatch(job1); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	job2 := &MockJob{id: "job2", group: "group1"}
+	if err := manager.Dispatch(job2); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestManager_DispatchToPartitionPond(t *testing.T) {
+	manager := jobman.NewManager("test-manager")
+	manager.SetAllocator(func(group, partition string) (jobman.Allocation, error) {
+		return jobman.Allocation{
+			GroupID:   group,
+			PondID:    partition,
+			IsShared:  partition == "",
+			QueueSize: 5,
+			PoolSize:  3,
+		}, nil
+	})
+	job := &MockJob{id: "job1", group: "group1", partition: "partition1"}
+	if err := manager.Dispatch(job); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
