@@ -2,6 +2,7 @@ package jobman_test
 
 import (
 	"testing"
+	"time"
 
 	"gopkg.in/jobman.v0"
 )
@@ -88,9 +89,14 @@ func TestManager_ResizePool(t *testing.T) {
 
 func TestManager_Dispatch(t *testing.T) {
 	manager := jobman.NewManager("test-manager")
-	job := &MockJob{id: "job1", group: "group1"}
 
+	job := &MockJob{id: "job1", group: "group1"}
 	if err := manager.Dispatch(job); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	// Ensure Dispatch calls DispatchWithAllocation correctly
+	if _, err := manager.DispatchWithAllocation(job); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 }
@@ -182,5 +188,44 @@ func TestManager_DispatchToPartitionPond(t *testing.T) {
 	job := &MockJob{id: "job1", group: "group1", partition: "partition1"}
 	if err := manager.Dispatch(job); err != nil {
 		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestManager_DispatchToSharedPond(t *testing.T) {
+	manager := jobman.NewManager("test-manager")
+	manager.SetAllocator(func(group, partition string) (jobman.Allocation, error) {
+		return jobman.Allocation{
+			GroupID:   group,
+			PondID:    "",
+			IsShared:  true,
+			QueueSize: 10,
+			PoolSize:  5,
+		}, nil
+	})
+
+	job1 := &MockJob{id: "job1", group: "group1", partition: "partition1"}
+	job2 := &MockJob{id: "job2", group: "group1", partition: "partition2"}
+
+	_, err := manager.DispatchWithAllocation(job1)
+	if err != nil {
+		t.Errorf("unexpected error: %v", err)
+	}
+	_, err = manager.DispatchWithAllocation(job2)
+	if err != nil {
+		t.Errorf("unexpected error: %v", err)
+	}
+
+	time.Sleep(50 * time.Millisecond)
+
+	sharedPond, err := manager.GetPond("group1", "")
+	stat := sharedPond.GetStat()
+	if stat.DequeuedCount != 2 {
+		t.Errorf("expected dequeued count: 2, got: %d", stat.DequeuedCount)
+	}
+	if stat.ProceededCount != 2 {
+		t.Errorf("expected proceeded count: 2, got: %d", stat.ProceededCount)
+	}
+	if stat.CompletedCount != 2 {
+		t.Errorf("expected completed count: 2, got: %d", stat.CompletedCount)
 	}
 }

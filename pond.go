@@ -101,6 +101,13 @@ func (p *Pond) GetPool() *ants.Pool {
 	return p.pool
 }
 
+// GetExternalQueues returns the external queues of the pond.
+func (p *Pond) GetExternalQueues() []*fifo.Queue[*allocatedJob] {
+	p.mu.RLock()
+	defer p.mu.RUnlock()
+	return p.extQueues
+}
+
 // Close closes the pond and releases all resources.
 func (p *Pond) Close() {
 	p.mu.Lock()
@@ -157,6 +164,18 @@ func (p *Pond) ResizePool(newSize int) {
 	l.Debug("pool resized")
 }
 
+// Subscribe subscribes a queue to the list of external queues.
+func (p *Pond) Subscribe(q *fifo.Queue[*allocatedJob]) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
+	// do nothing if the pond is closed
+	if p.isClosed {
+		return
+	}
+	p.extQueues = append(p.extQueues, q)
+}
+
 // Submit submits a job to the pond.
 func (p *Pond) Submit(j Job) error {
 	if j == nil {
@@ -202,18 +221,6 @@ func (p *Pond) Submit(j Job) error {
 
 	// return nil if the job is submitted successfully
 	return nil
-}
-
-// Subscribe subscribes a queue to the list of external queues.
-func (p *Pond) Subscribe(q *fifo.Queue[*allocatedJob]) {
-	p.mu.Lock()
-	defer p.mu.Unlock()
-
-	// do nothing if the pond is closed
-	if p.isClosed {
-		return
-	}
-	p.extQueues = append(p.extQueues, q)
 }
 
 // StartPartitionWatchAsync starts the pond watch loop asynchronously.

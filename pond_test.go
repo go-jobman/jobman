@@ -129,7 +129,10 @@ func TestPond_Subscribe(t *testing.T) {
 	sharedPond.Subscribe(partPond.GetQueue())
 
 	if sharedPond.GetQueue().Len() != 0 {
-		t.Fatal("expected external queue to be empty initially")
+		t.Fatal("expected internal queue to be empty initially")
+	}
+	if l := len(sharedPond.GetExternalQueues()); l != 1 {
+		t.Fatalf("expected external queue to be subscribed, got: %d", l)
 	}
 }
 
@@ -163,5 +166,16 @@ func TestPond_StartSharedWatchAsync(t *testing.T) {
 	time.Sleep(50 * time.Millisecond) // allow some time for the handler to proceed
 	if !job.IsAccepted() {
 		t.Error("expected job to be accepted")
+	}
+}
+
+func TestPond_GetSharedPondQueue(t *testing.T) {
+	sharedPond := jobman.NewSharedPond("test-shared-pond", 10, 5)
+	partitionPond := jobman.NewPartitionPond("test-partition-pond", 5, 3)
+
+	sharedPond.Subscribe(partitionPond.GetQueue())
+
+	if l := len(sharedPond.GetExternalQueues()); l != 1 {
+		t.Errorf("expected 1 external queue, got: %d", l)
 	}
 }
