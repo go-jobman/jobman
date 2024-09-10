@@ -2,48 +2,55 @@
 // It includes error definitions, constants for shared pond operations, and utility functions
 // for creating and managing ponds and their associated job queues and worker pools.
 //
-// Concepts:
+// It includes the following key concepts:
 //
 // Job:
-// A job represents a unit of work that needs to be processed. Jobs implement the Job interface,
-// which includes methods for getting the job's ID, group, partition, and lifecycle events such as
-// OnAccepted, OnRejected, and Proceed.
+//   - Represents a unit of work to be processed by the system.
+//   - Implements the Job interface, which defines methods to handle job lifecycle events.
+//   - Each job has a unique identifier, a group it belongs to, and an optional partition.
 //
 // Manager:
-// The Manager is the main entry point for submitting jobs. It manages multiple groups of ponds
-// and is responsible for job allocation and dispatching. The manager uses an allocator function
-// to determine how jobs are distributed across different ponds within groups.
+//   - The main entry point for submitting jobs to the system.
+//   - Manages a collection of groups, each with its own set of ponds.
+//   - Responsible for allocating jobs to the appropriate ponds based on the group and partition.
+//   - Provides methods to resize the queue and pool of ponds.
 //
 // Group:
-// A group represents a collection of ponds, including a shared pond and multiple partition ponds.
-// The group manages the context, logger, and counters for received and enqueued items. It ensures
-// that jobs are appropriately allocated to either the shared pond or specific partition ponds.
+//   - Represents a collection of ponds, including a shared pond and partition ponds.
+//   - Manages the context, logger, and counters for received and enqueued items.
+//   - Initializes ponds for specific partitions when needed.
 //
 // Pond:
-// A pond is a job processing unit with a queue and a pool of workers. Ponds manage the lifecycle
-// of jobs, including submission, queuing, and execution. Ponds can be either shared or partitioned.
+//   - Represents a job processing unit with a queue and a pool of workers.
+//   - Manages the lifecycle, logging, and counters for various job states.
+//   - Can be a shared pond or a partition pond.
+//   - Shared ponds maintain a list of external queues to dequeue jobs from.
+//
+// Allocation:
+//   - Defines the allocation of a job to a pond of a group, including the size of the queue and pool.
+//   - GroupID represents the identifier of the group to which the job is allocated.
+//   - PondID represents the identifier of the pond within the group. An empty PondID indicates allocation to a shared pond.
+//   - IsShared indicates whether the job is allocated to a shared pond.
+//   - QueueSize represents the size of the queue associated with the pond.
+//   - PoolSize represents the size of the pool associated with the pond.
+//
+// AllocatorFunc:
+//   - A function type that defines the signature for allocating a job to a pond of a group.
+//   - Takes the group and partition as input parameters and returns an Allocation or an error.
+//   - If the partition is empty, the job should be allocated to a shared pond, and the size of the queue and pool of the shared pond should be returned.
+//
+// The package also includes the following strategies for managing ponds:
 //
 // Shared Pond:
-// A shared pond is a pond that handles jobs that do not belong to any specific partition. It can
-// subscribe to external queues from partition ponds and process jobs from those queues as well.
+//   - Maintains a queue and a pool of workers.
+//   - Dequeues jobs from its own queue and from the external queues of partition ponds.
+//   - Has a dedicated watch loop that periodically checks the queue and dequeues jobs.
+//   - Configurable parameters for dequeue retry interval and limit.
 //
 // Partition Pond:
-// A partition pond is a pond dedicated to handling jobs belonging to a specific partition. Each
-// partition pond has its own queue and worker pool.
-//
-// Strategy of Shared and Partition Ponds:
-//
-// Shared Ponds:
-// Shared ponds are designed to handle jobs that do not belong to any specific partition. They have
-// a central queue and worker pool that can process jobs from multiple sources. Shared ponds also
-// subscribe to external queues from partition ponds, allowing them to pick up jobs from those
-// queues when their own queue is empty or when additional workers are available.
-//
-// Partition Ponds:
-// Partition ponds handle jobs that belong to specific partitions. Each partition pond has its own
-// queue and worker pool, ensuring that jobs for that partition are processed independently. This
-// allows for more granular control over job processing and resource allocation for different
-// partitions.
+//   - Maintains a queue and a pool of workers for a specific partition.
+//   - Dequeues jobs from its own queue and submits them to the worker pool.
+//   - Has a dedicated watch loop that periodically checks the queue and dequeues jobs.
 //
 // The strategy of using shared and partition ponds allows for flexible and efficient job
 // processing. Shared ponds provide a centralized processing unit that can handle overflow from
