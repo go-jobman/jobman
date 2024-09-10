@@ -10,15 +10,15 @@ import (
 
 var (
 	// ErrAllocatorNotSet is an error that indicates that the allocator function is not set.
-	ErrAllocatorNotSet = errors.New("allocator not set")
+	ErrAllocatorNotSet = errors.New("jobman: allocator not set")
 	// ErrJobNil is an error that indicates that the job is nil.
-	ErrJobNil = errors.New("job is nil")
+	ErrJobNil = errors.New("jobman: job is nil")
 	// ErrPondClosed is an error that indicates that the pond is closed.
-	ErrPondClosed = errors.New("pond is closed")
+	ErrPondClosed = errors.New("jobman: pond is closed")
 	// ErrGroupNotFound is an error that indicates that the specified group was not found.
-	ErrGroupNotFound = errors.New("group not found")
+	ErrGroupNotFound = errors.New("jobman: group not found")
 	// ErrPondNotFound is an error that indicates that the specified pond was not found.
-	ErrPondNotFound = errors.New("pond not found")
+	ErrPondNotFound = errors.New("jobman: pond not found")
 )
 
 var (
