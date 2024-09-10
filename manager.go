@@ -40,7 +40,7 @@ func NewManager(name string) *Manager {
 
 func (m *Manager) String() string {
 	return fmt.Sprintf(
-		"📨Manager[%s]{Groups:%d Received:%d}",
+		"📨Manager[%s](Groups:%d,Received:%d)",
 		m.name,
 		len(m.groups),
 		m.cntRecv.Load(),

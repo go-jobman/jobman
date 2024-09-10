@@ -59,11 +59,12 @@ func NewPartitionPond(name string, queueSize, poolSize int) *Pond {
 }
 
 func (p *Pond) String() string {
-	return fmt.Sprintf("🗳️Pond[%s]{Queue:%d Pool:%d Shared:%s}",
+	return fmt.Sprintf("🗳️Pond[%s](Shared:%s,Queue:%d,Pool:%d)",
 		p.name,
+		charBool(p.isShared),
 		p.queueSize,
 		p.poolSize,
-		charBool(p.isShared))
+	)
 }
 
 // NewSharedPond creates a new shared pond with the specified queue and pool size.
