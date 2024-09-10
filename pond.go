@@ -18,7 +18,7 @@ import (
 // It manages the lifecycle, logging, and counters for various job states.
 type Pond struct {
 	// basic
-	sync.RWMutex
+	mu        sync.RWMutex
 	ctx       context.Context
 	cancel    context.CancelFunc
 	lg        *zap.SugaredLogger
@@ -88,8 +88,8 @@ func NewSharedPond(name string, queueSize, poolSize int) *Pond {
 
 // Close closes the pond and releases all resources.
 func (p *Pond) Close() {
-	p.Lock()
-	defer p.Unlock()
+	p.mu.Lock()
+	defer p.mu.Unlock()
 
 	p.isClosed = true
 	p.cancel()
@@ -104,8 +104,8 @@ func (p *Pond) GetID() string {
 
 // ResizeQueue resizes the queue of the pond.
 func (p *Pond) ResizeQueue(newSize int) {
-	p.Lock()
-	defer p.Unlock()
+	p.mu.Lock()
+	defer p.mu.Unlock()
 
 	// if the pond is closed, do nothing
 	if p.isClosed {
@@ -129,8 +129,8 @@ func (p *Pond) ResizeQueue(newSize int) {
 
 // ResizePool resizes the pool of the pond.
 func (p *Pond) ResizePool(newSize int) {
-	p.Lock()
-	defer p.Unlock()
+	p.mu.Lock()
+	defer p.mu.Unlock()
 
 	// if the pond is closed, do nothing
 	if p.isClosed {
@@ -197,8 +197,8 @@ func (p *Pond) Submit(j Job) error {
 
 // Subscribe subscribes a queue to the list of external queues.
 func (p *Pond) Subscribe(q *fifo.Queue[*AllocatedJob]) {
-	p.Lock()
-	defer p.Unlock()
+	p.mu.Lock()
+	defer p.mu.Unlock()
 
 	// do nothing if the pond is closed
 	if p.isClosed {
@@ -335,10 +335,10 @@ func (p *Pond) startSharedWatch() {
 					}
 
 					// check the external queues
-					p.RLock()
+					p.mu.RLock()
 					outs := make([]*fifo.Queue[*AllocatedJob], len(p.extQueues))
 					copy(outs, p.extQueues)
-					p.RUnlock()
+					p.mu.RUnlock()
 
 					// if no external queues, sleep for a while
 					if len(outs) == 0 {
