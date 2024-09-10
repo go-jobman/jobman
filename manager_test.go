@@ -50,6 +50,10 @@ func TestManager_ResizeQueue(t *testing.T) {
 	if err := manager.ResizeQueue("group1", "", 10); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
+
+	if err := manager.ResizeQueue("group1", "missing", 10); err == nil {
+		t.Fatal("expected error, got nil")
+	}
 }
 
 func TestManager_ResizePool(t *testing.T) {
@@ -71,6 +75,10 @@ func TestManager_ResizePool(t *testing.T) {
 
 	if err := manager.ResizePool("group1", "", 5); err != nil {
 		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if err := manager.ResizePool("group1", "missing", 5); err == nil {
+		t.Fatal("expected error, got nil")
 	}
 }
 
