@@ -118,7 +118,7 @@ func (m *Manager) DispatchWithAllocation(j Job) (*Allocation, error) {
 		return nil, ErrJobNil
 	}
 
-	// basic
+	// logger setup
 	mgrIdx := m.cntRecv.Inc()
 	l := m.lg.With(zap.String("method", "dispatch"), zap.Int64("mgr_idx", mgrIdx), zap.String("job_id", j.ID()))
 	l.Debug("try to dispatch job")
@@ -130,12 +130,15 @@ func (m *Manager) DispatchWithAllocation(j Job) (*Allocation, error) {
 	}
 	al, err := m.alloc(j.Group(), j.Partition())
 	if err != nil {
-		l.Warnw("allocation failed", zap.Error(err))
+		l.Warnw("fail to get allocation", zap.Error(err))
+		return nil, err
+	} else if err := al.IsValid(false); err != nil {
+		l.Warnw("got invalid allocation", zap.Error(err))
 		return nil, err
 	}
 	l.Debugw("got allocation", "allocation", al)
 
-	// lock for the group
+	// lock for adding group
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -146,10 +149,15 @@ func (m *Manager) DispatchWithAllocation(j Job) (*Allocation, error) {
 		// get shared pool allocation
 		var sl Allocation
 		if al.IsShared {
+			// existing allocation is actually for shared pool
 			sl = al
 		} else {
+			// extra call for shared pool allocation
 			if sl, err = m.alloc(j.Group(), ""); err != nil {
-				l.Warnw("allocation for shared failed", zap.Error(err))
+				l.Warnw("fail to get allocation for shared", zap.Error(err))
+				return nil, err
+			} else if err := sl.IsValid(true); err != nil {
+				l.Warnw("got invalid allocation for shared", zap.Error(err))
 				return nil, err
 			}
 		}
@@ -157,17 +165,20 @@ func (m *Manager) DispatchWithAllocation(j Job) (*Allocation, error) {
 		m.groups[sl.GroupID] = grp
 	}
 
-	// initialize the pool if not shared
+	// initialize the partition pool if necessary
 	if !al.IsShared {
 		grp.InitializePond(al.PondID, al.QueueSize, al.PoolSize)
 	}
 	grp.cntRecv.Inc()
 
 	// get the pond and submit the job
+	if al.IsShared {
+		al.PondID = "" // reset the pond id for the shared pool
+	}
 	pd := grp.GetPond(al.PondID)
 	if pd == nil {
-		l.Warnw("pond not found", "group_id", al.GroupID, "pond_id", al.PondID) // it won't happen actually
-		return nil, err
+		l.Warnw("pond not found", "group_id", al.GroupID, "pond_id", al.PondID) // it should not happen
+		return nil, ErrPondNotFound
 	}
 	if err := pd.Submit(j); err != nil {
 		l.Warnw("job dispatch failed", "group_id", al.GroupID, "pond_id", al.PondID, zap.Error(err))

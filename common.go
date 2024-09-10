@@ -75,6 +75,14 @@ var (
 	ErrGroupNotFound = errors.New("jobman: group not found")
 	// ErrPondNotFound is an error that indicates that the specified pond was not found.
 	ErrPondNotFound = errors.New("jobman: pond not found")
+	// ErrInvalidGroupID is an error that indicates that the specified group ID is invalid.
+	ErrInvalidGroupID = errors.New("jobman: invalid group id")
+	// ErrInvalidPoolSize is an error that indicates that the specified pool size is invalid.
+	ErrInvalidPoolSize = errors.New("jobman: invalid pool size")
+	// ErrInvalidQueueSize is an error that indicates that the specified queue size is invalid.
+	ErrInvalidQueueSize = errors.New("jobman: invalid queue size")
+	// ErrExpectedSharedPond is an error that indicates that the expected pond is not a shared pond.
+	ErrExpectedSharedPond = errors.New("jobman: expected shared pond")
 )
 
 var (

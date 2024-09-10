@@ -29,8 +29,20 @@ type Allocation struct {
 }
 
 // IsValid checks if the allocation is valid.
-func (a Allocation) IsValid() bool {
-	return a.GroupID != "" && a.QueueSize > 0 && a.PoolSize > 0
+func (a Allocation) IsValid(expectShared bool) error {
+	if a.GroupID == "" {
+		return ErrInvalidGroupID
+	}
+	if a.QueueSize <= 0 {
+		return ErrInvalidQueueSize
+	}
+	if a.PoolSize <= 0 {
+		return ErrInvalidPoolSize
+	}
+	if expectShared && !a.IsShared {
+		return ErrExpectedSharedPond
+	}
+	return nil
 }
 
 // AllocatorFunc is a function type that defines the signature for allocating a job to a pond of a group.
