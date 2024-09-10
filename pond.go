@@ -329,7 +329,7 @@ func (p *Pond) startSharedWatch() {
 				} else {
 					// if got no left worker for external queues, sleep for a while
 					if p.pool.Free() <= 0 {
-						ll.Debugw("no left worker for external queues")
+						//ll.Debugw("no left worker for external queues")
 						sleep()
 						continue
 					}
@@ -342,7 +342,7 @@ func (p *Pond) startSharedWatch() {
 
 					// if no external queues, sleep for a while
 					if len(outs) == 0 {
-						ll.Debugw("no external queues to check")
+						//ll.Debugw("no external queues to check")
 						sleep()
 						continue
 					}
@@ -364,7 +364,7 @@ func (p *Pond) startSharedWatch() {
 
 					// if no job dequeued from external queues, sleep for a while
 					if jobCnt == 0 {
-						ll.Debugw("no external partition job dequeued")
+						//ll.Debugw("no external partition job dequeued")
 						sleep()
 						continue
 					}
