@@ -58,6 +58,12 @@ func TestPond_ResizeQueue(t *testing.T) {
 		t.Errorf("expected queue capacity: %d, got: %d", 5, pond.GetQueue().Cap())
 	}
 
+	// Resize to invalid size (no-op)
+	pond.ResizeQueue(0)
+	if pond.GetQueue().Cap() != 5 {
+		t.Errorf("expected queue capacity: %d, got: %d", 5, pond.GetQueue().Cap())
+	}
+
 	// Resize a closed pond
 	pond.Close()
 	pond.ResizeQueue(15)
@@ -83,6 +89,12 @@ func TestPond_ResizePool(t *testing.T) {
 
 	// Resize to the same size (no-op)
 	pond.ResizePool(3)
+	if pond.GetPool().Cap() != 3 {
+		t.Errorf("expected pool capacity: %d, got: %d", 3, pond.GetPool().Cap())
+	}
+
+	// Resize to invalid size (no-op)
+	pond.ResizePool(0)
 	if pond.GetPool().Cap() != 3 {
 		t.Errorf("expected pool capacity: %d, got: %d", 3, pond.GetPool().Cap())
 	}
