@@ -182,8 +182,7 @@ func (p *Pond) Submit(j Job) error {
 	}
 
 	// record the enqueue count
-	l.Debugw("job enqueued", "enqueue_count", p.cntEnque.Load())
-	p.cntEnque.Inc()
+	l.Debugw("job enqueued", "enqueue_count", p.cntEnque.Inc())
 
 	// notify the job is accepted
 	go func() {
