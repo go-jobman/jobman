@@ -118,7 +118,7 @@ func (m *Manager) DispatchWithAllocation(j Job) (*Allocation, error) {
 		return nil, ErrJobNil
 	}
 
-	// basic
+	// logger setup
 	mgrIdx := m.cntRecv.Inc()
 	l := m.lg.With(zap.String("method", "dispatch"), zap.Int64("mgr_idx", mgrIdx), zap.String("job_id", j.ID()))
 	l.Debug("try to dispatch job")
@@ -138,7 +138,7 @@ func (m *Manager) DispatchWithAllocation(j Job) (*Allocation, error) {
 	}
 	l.Debugw("got allocation", "allocation", al)
 
-	// lock for the group
+	// lock for adding group
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -152,7 +152,7 @@ func (m *Manager) DispatchWithAllocation(j Job) (*Allocation, error) {
 			// existing allocation is actually for shared pool
 			sl = al
 		} else {
-			// retrieve a shared pool allocation
+			// extra call for shared pool allocation
 			if sl, err = m.alloc(j.Group(), ""); err != nil {
 				l.Warnw("fail to get allocation for shared", zap.Error(err))
 				return nil, err
@@ -165,7 +165,7 @@ func (m *Manager) DispatchWithAllocation(j Job) (*Allocation, error) {
 		m.groups[sl.GroupID] = grp
 	}
 
-	// initialize the pool if not shared
+	// initialize the partition pool if necessary
 	if !al.IsShared {
 		grp.InitializePond(al.PondID, al.QueueSize, al.PoolSize)
 	}
