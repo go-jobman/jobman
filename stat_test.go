@@ -2,9 +2,26 @@ package jobman_test
 
 import (
 	"testing"
+	"time"
 
 	"gopkg.in/jobman.v0"
 )
+
+func TestPond_GetStat(t *testing.T) {
+	pond := jobman.NewPartitionPond("test-pond", 10, 5)
+	job := &MockJob{id: "job1"}
+
+	pond.Submit(job)
+	time.Sleep(100 * time.Millisecond) // Allow some time for the job to proceed
+
+	stat := pond.GetStat()
+	if stat.ReceivedCount != 1 {
+		t.Errorf("expected received count: %d, got: %d", 1, stat.ReceivedCount)
+	}
+	if stat.EnqueuedCount != 1 {
+		t.Errorf("expected enqueued count: %d, got: %d", 1, stat.EnqueuedCount)
+	}
+}
 
 func TestGroup_GetStat(t *testing.T) {
 	group := jobman.NewGroup("test-group", 10, 5)
