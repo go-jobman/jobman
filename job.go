@@ -9,8 +9,8 @@ type Job interface {
 	ID() string        // Return the unique identifier for the job.
 	Group() string     // Return the group id of the job that the job belongs to.
 	Partition() string // Return the partition id of the job (if any), empty string for shared partition.
-	OnAccepted()       // Called when the job is submitted successfully to a pond if it's not nil.
-	OnRejected()       // Called when the job is rejected by a pond if it's not nil.
+	OnAccepted()       // Called when the job is submitted successfully to a pond.
+	OnRejected()       // Called when the job is rejected by a pond.
 	Proceed()          // Called when the job is about to be executed by a worker.
 }
 
@@ -38,8 +38,8 @@ func (a Allocation) IsValid() bool {
 // If the partition is empty, the job should be allocated to a shared pond, and the size of the queue and pool of the shared pond should be returned.
 type AllocatorFunc func(group, partition string) (Allocation, error)
 
-// AllocatedJob is actually a wrapper for job with an index in the pond and the lock, used for queueing.
-type AllocatedJob struct {
+// allocatedJob is actually a wrapper for job with an index in the pond and the lock, used for queueing.
+type allocatedJob struct {
 	readyProc chan struct{}
 	PondIndex int64
 	SubmitAt  time.Time

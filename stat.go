@@ -43,8 +43,8 @@ type GroupStat struct {
 
 // GetStat returns the statistics of the group.
 func (g *Group) GetStat() *GroupStat {
-	g.RLock()
-	defer g.RUnlock()
+	g.mu.RLock()
+	defer g.mu.RUnlock()
 
 	pc := len(g.partPonds) + 1 // add 1 for shared pond
 	ps := make(map[string]*PondStat, pc)
@@ -69,8 +69,8 @@ type ManagerStat struct {
 
 // GetStat returns the statistics of the manager.
 func (m *Manager) GetStat() *ManagerStat {
-	m.RLock()
-	defer m.RUnlock()
+	m.mu.RLock()
+	defer m.mu.RUnlock()
 
 	gs := make(map[string]*GroupStat, len(m.groups))
 	for k, v := range m.groups {

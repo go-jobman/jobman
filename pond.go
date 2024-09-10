@@ -18,7 +18,7 @@ import (
 // It manages the lifecycle, logging, and counters for various job states.
 type Pond struct {
 	// basic
-	sync.RWMutex
+	mu        sync.RWMutex
 	ctx       context.Context
 	cancel    context.CancelFunc
 	lg        *zap.SugaredLogger
@@ -28,9 +28,9 @@ type Pond struct {
 	queueSize int
 	poolSize  int
 	// core
-	queue     *fifo.Queue[*AllocatedJob]
+	queue     *fifo.Queue[*allocatedJob]
 	pool      *ants.Pool
-	extQueues []*fifo.Queue[*AllocatedJob]
+	extQueues []*fifo.Queue[*allocatedJob]
 	watchOnce sync.Once
 	// counter
 	cntRecv  atomic.Int64
@@ -51,7 +51,7 @@ func NewPartitionPond(name string, queueSize, poolSize int) *Pond {
 		isShared:  false,
 		queueSize: queueSize,
 		poolSize:  poolSize,
-		queue:     fifo.New[*AllocatedJob](queueSize),
+		queue:     fifo.New[*allocatedJob](queueSize),
 		pool:      createPool(poolSize),
 	}
 	pd.lg.Debugw("new partition pond created", "queue_size", queueSize, "pool_size", poolSize)
@@ -59,11 +59,12 @@ func NewPartitionPond(name string, queueSize, poolSize int) *Pond {
 }
 
 func (p *Pond) String() string {
-	return fmt.Sprintf("🗳️Pond[%s]{Queue:%d Pool:%d Shared:%s}",
+	return fmt.Sprintf("🗳️Pond[%s](Shared:%s,Queue:%d,Pool:%d)",
 		p.name,
+		charBool(p.isShared),
 		p.queueSize,
 		p.poolSize,
-		charBool(p.isShared))
+	)
 }
 
 // NewSharedPond creates a new shared pond with the specified queue and pool size.
@@ -77,9 +78,9 @@ func NewSharedPond(name string, queueSize, poolSize int) *Pond {
 		isShared:  true,
 		queueSize: queueSize,
 		poolSize:  poolSize,
-		queue:     fifo.New[*AllocatedJob](queueSize),
+		queue:     fifo.New[*allocatedJob](queueSize),
 		pool:      createPool(poolSize),
-		extQueues: make([]*fifo.Queue[*AllocatedJob], 0),
+		extQueues: make([]*fifo.Queue[*allocatedJob], 0),
 	}
 	pd.lg.Debugw("new shared pond created", "queue_size", queueSize, "pool_size", poolSize)
 	return pd
@@ -87,8 +88,8 @@ func NewSharedPond(name string, queueSize, poolSize int) *Pond {
 
 // Close closes the pond and releases all resources.
 func (p *Pond) Close() {
-	p.Lock()
-	defer p.Unlock()
+	p.mu.Lock()
+	defer p.mu.Unlock()
 
 	p.isClosed = true
 	p.cancel()
@@ -103,8 +104,8 @@ func (p *Pond) GetID() string {
 
 // ResizeQueue resizes the queue of the pond.
 func (p *Pond) ResizeQueue(newSize int) {
-	p.Lock()
-	defer p.Unlock()
+	p.mu.Lock()
+	defer p.mu.Unlock()
 
 	// if the pond is closed, do nothing
 	if p.isClosed {
@@ -128,8 +129,8 @@ func (p *Pond) ResizeQueue(newSize int) {
 
 // ResizePool resizes the pool of the pond.
 func (p *Pond) ResizePool(newSize int) {
-	p.Lock()
-	defer p.Unlock()
+	p.mu.Lock()
+	defer p.mu.Unlock()
 
 	// if the pond is closed, do nothing
 	if p.isClosed {
@@ -160,7 +161,7 @@ func (p *Pond) Submit(j Job) error {
 
 	// create a job allocation
 	idx := p.cntRecv.Inc()
-	ja := &AllocatedJob{
+	ja := &allocatedJob{
 		readyProc: make(chan struct{}),
 		PondIndex: idx,
 		SubmitAt:  time.Now(),
@@ -195,9 +196,9 @@ func (p *Pond) Submit(j Job) error {
 }
 
 // Subscribe subscribes a queue to the list of external queues.
-func (p *Pond) Subscribe(q *fifo.Queue[*AllocatedJob]) {
-	p.Lock()
-	defer p.Unlock()
+func (p *Pond) Subscribe(q *fifo.Queue[*allocatedJob]) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
 
 	// do nothing if the pond is closed
 	if p.isClosed {
@@ -207,7 +208,7 @@ func (p *Pond) Subscribe(q *fifo.Queue[*AllocatedJob]) {
 }
 
 // GetQueue returns the queue of the pond.
-func (p *Pond) GetQueue() *fifo.Queue[*AllocatedJob] {
+func (p *Pond) GetQueue() *fifo.Queue[*allocatedJob] {
 	return p.queue
 }
 
@@ -237,7 +238,7 @@ func (p *Pond) StartSharedWatchAsync() {
 }
 
 // startJobSubmissionLoop starts the job submission loop.
-func (p *Pond) startJobSubmissionLoop(l *zap.SugaredLogger, done <-chan struct{}, jc <-chan *AllocatedJob, pl *ants.Pool) {
+func (p *Pond) startJobSubmissionLoop(l *zap.SugaredLogger, done <-chan struct{}, jc <-chan *allocatedJob, pl *ants.Pool) {
 	for {
 		select {
 		case <-done:
@@ -263,11 +264,11 @@ func (p *Pond) startJobSubmissionLoop(l *zap.SugaredLogger, done <-chan struct{}
 
 func (p *Pond) startPartitionWatch() {
 	l := p.lg.With("method", "own_watch")
-	jc := make(chan *AllocatedJob)
+	jc := make(chan *allocatedJob)
 	dc := p.ctx.Done()
 
 	// start the watch loop to take a job from the queue for each time
-	go func(done <-chan struct{}, jc chan<- *AllocatedJob, q *fifo.Queue[*AllocatedJob]) {
+	go func(done <-chan struct{}, jc chan<- *allocatedJob, q *fifo.Queue[*allocatedJob]) {
 		defer close(jc)
 		rd := 0
 		for {
@@ -295,14 +296,14 @@ func (p *Pond) startPartitionWatch() {
 
 func (p *Pond) startSharedWatch() {
 	l := p.lg.With("method", "all_watch")
-	jc := make(chan *AllocatedJob)
+	jc := make(chan *allocatedJob)
 	dc := p.ctx.Done()
 	sleep := func() {
 		time.Sleep(SharedPondCheckInterval)
 	}
 
 	// start the watch loop to take a job from the queue for each time
-	go func(done <-chan struct{}, jc chan<- *AllocatedJob, q *fifo.Queue[*AllocatedJob]) {
+	go func(done <-chan struct{}, jc chan<- *allocatedJob, q *fifo.Queue[*allocatedJob]) {
 		defer close(jc)
 
 		rd := 0
@@ -316,7 +317,7 @@ func (p *Pond) startSharedWatch() {
 				return
 			default:
 				var (
-					ja  *AllocatedJob
+					ja  *allocatedJob
 					err error
 				)
 				if ef := fixedRetry(func() error {
@@ -328,20 +329,20 @@ func (p *Pond) startSharedWatch() {
 				} else {
 					// if got no left worker for external queues, sleep for a while
 					if p.pool.Free() <= 0 {
-						ll.Debugw("no left worker for external queues")
+						//ll.Debugw("no left worker for external queues")
 						sleep()
 						continue
 					}
 
 					// check the external queues
-					p.RLock()
-					outs := make([]*fifo.Queue[*AllocatedJob], len(p.extQueues))
+					p.mu.RLock()
+					outs := make([]*fifo.Queue[*allocatedJob], len(p.extQueues))
 					copy(outs, p.extQueues)
-					p.RUnlock()
+					p.mu.RUnlock()
 
 					// if no external queues, sleep for a while
 					if len(outs) == 0 {
-						ll.Debugw("no external queues to check")
+						//ll.Debugw("no external queues to check")
 						sleep()
 						continue
 					}
@@ -363,7 +364,7 @@ func (p *Pond) startSharedWatch() {
 
 					// if no job dequeued from external queues, sleep for a while
 					if jobCnt == 0 {
-						ll.Debugw("no external partition job dequeued")
+						//ll.Debugw("no external partition job dequeued")
 						sleep()
 						continue
 					}
