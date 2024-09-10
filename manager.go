@@ -10,7 +10,7 @@ import (
 
 // Manager is the main entry point for submitting jobs.
 type Manager struct {
-	sync.RWMutex
+	mu     sync.RWMutex
 	lg     *zap.SugaredLogger
 	name   string
 	alloc  AllocatorFunc
@@ -49,8 +49,8 @@ func (m *Manager) String() string {
 
 // SetAllocator sets the allocator function for the manager.
 func (m *Manager) SetAllocator(a AllocatorFunc) {
-	m.Lock()
-	defer m.Unlock()
+	m.mu.Lock()
+	defer m.mu.Unlock()
 
 	m.alloc = a
 }
@@ -77,8 +77,8 @@ func (m *Manager) ResizePool(group, partition string, newSize int) error {
 
 // GetPond is a helper method to find the pond via group and partition.
 func (m *Manager) GetPond(group, partition string) (*Pond, error) {
-	m.RLock()
-	defer m.RUnlock()
+	m.mu.RLock()
+	defer m.mu.RUnlock()
 
 	grp, ok := m.groups[group]
 	if !ok {
@@ -95,8 +95,8 @@ func (m *Manager) GetPond(group, partition string) (*Pond, error) {
 
 // GetGroup is a helper method to find the group via group id.
 func (m *Manager) GetGroup(group string) (*Group, error) {
-	m.RLock()
-	defer m.RUnlock()
+	m.mu.RLock()
+	defer m.mu.RUnlock()
 
 	grp, ok := m.groups[group]
 	if !ok {
@@ -136,8 +136,8 @@ func (m *Manager) DispatchWithAllocation(j Job) (*Allocation, error) {
 	l.Debugw("got allocation", "allocation", al)
 
 	// lock for the group
-	m.Lock()
-	defer m.Unlock()
+	m.mu.Lock()
+	defer m.mu.Unlock()
 
 	// find the group for the job or create a new group
 	grp, ok := m.groups[al.GroupID]

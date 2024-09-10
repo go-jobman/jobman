@@ -69,8 +69,8 @@ type ManagerStat struct {
 
 // GetStat returns the statistics of the manager.
 func (m *Manager) GetStat() *ManagerStat {
-	m.RLock()
-	defer m.RUnlock()
+	m.mu.RLock()
+	defer m.mu.RUnlock()
 
 	gs := make(map[string]*GroupStat, len(m.groups))
 	for k, v := range m.groups {
