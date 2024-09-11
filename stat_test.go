@@ -10,7 +10,7 @@ func TestPond_GetStat(t *testing.T) {
 	pond := jobman.NewPartitionPond("test-pond", 10, 5)
 	job := &MockJob{id: "job1"}
 
-	pond.Submit(job)
+	pond.Submit(job, false)
 	blockForHandling() // Allow some time for the job to proceed
 
 	stat := pond.GetStat()

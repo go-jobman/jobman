@@ -179,7 +179,7 @@ func (p *Pond) Subscribe(q *fifo.Queue[*AllocatedJob]) {
 }
 
 // Submit submits a job to the pond.
-func (p *Pond) Submit(j Job) error {
+func (p *Pond) Submit(j Job, blockingCallback bool) error {
 	if j == nil {
 		return ErrJobNil
 	} else if p.isClosed {
@@ -204,10 +204,15 @@ func (p *Pond) Submit(j Job) error {
 		l.Warnw("enqueue failed", zap.Error(err))
 
 		// notify the job is rejected
-		go func() {
-			defer close(ja.readyProc)
+		if blockingCallback {
 			j.OnRejected()
-		}()
+			close(ja.readyProc)
+		} else {
+			go func() {
+				defer close(ja.readyProc)
+				j.OnRejected()
+			}()
+		}
 
 		return err
 	}
@@ -216,10 +221,15 @@ func (p *Pond) Submit(j Job) error {
 	l.Debugw("job enqueued", "enqueue_count", p.cntEnque.Inc())
 
 	// notify the job is accepted
-	go func() {
-		defer close(ja.readyProc)
+	if blockingCallback {
 		j.OnAccepted()
-	}()
+		close(ja.readyProc)
+	} else {
+		go func() {
+			defer close(ja.readyProc)
+			j.OnAccepted()
+		}()
+	}
 
 	// return nil if the job is submitted successfully
 	return nil

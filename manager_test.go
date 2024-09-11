@@ -343,11 +343,11 @@ func TestManager_ErrorsWhilePondIsFull(t *testing.T) {
 
 	job1 := &MockJob{id: "job1", group: "group1"}
 	job2 := &MockJob{id: "job2", group: "group1"}
+	// should got (1+1+2) = 4 jobs to make it full
 
 	if err := manager.Dispatch(job1); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-
 	if err := manager.Dispatch(job2); err == nil {
 		t.Fatal("expected queue full error, got nil")
 	} else {
