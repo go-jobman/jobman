@@ -1,6 +1,7 @@
 package jobman_test
 
 import (
+	"errors"
 	"testing"
 
 	"gopkg.in/jobman.v0"
@@ -103,7 +104,7 @@ func TestManager_Dispatch(t *testing.T) {
 func TestManager_DispatchWithNilJob(t *testing.T) {
 	manager := jobman.NewManager("test-manager")
 	err := manager.Dispatch(nil)
-	if err != jobman.ErrJobNil {
+	if !errors.Is(err, jobman.ErrJobNil) {
 		t.Fatalf("expected error: %v, got: %v", jobman.ErrJobNil, err)
 	}
 }
@@ -113,7 +114,7 @@ func TestManager_DispatchWithNoAllocator(t *testing.T) {
 	manager.SetAllocator(nil)
 	job := &MockJob{id: "job1", group: "group1"}
 	err := manager.Dispatch(job)
-	if err != jobman.ErrAllocatorNotSet {
+	if !errors.Is(err, jobman.ErrAllocatorNotSet) {
 		t.Fatalf("expected error: %v, got: %v", jobman.ErrAllocatorNotSet, err)
 	}
 }
@@ -131,7 +132,7 @@ func TestManager_DispatchWithInvalidAllocation(t *testing.T) {
 	})
 	job := &MockJob{id: "job1", group: "group1"}
 	err := manager.Dispatch(job)
-	if err != jobman.ErrInvalidGroupID {
+	if !errors.Is(err, jobman.ErrInvalidGroupID) {
 		t.Fatalf("expected error: %v, got: %v", jobman.ErrInvalidGroupID, err)
 	}
 }
@@ -260,7 +261,9 @@ func TestManager_GetPond(t *testing.T) {
 	}
 
 	// Test partition pond
-	manager.Dispatch(&MockJob{id: "job2", group: "group1", partition: "partition1"})
+	if err := manager.Dispatch(&MockJob{id: "job2", group: "group1", partition: "partition1"}); err != nil {
+		t.Fatalf("expected error: %v, got: %v", nil, err)
+	}
 	partPond, err := manager.GetPond("group1", "partition1")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -305,7 +308,7 @@ func TestManager_AllocationIssues(t *testing.T) {
 	manager.SetAllocator(nil)
 	job := &MockJob{id: "job1", group: "group1"}
 	err := manager.Dispatch(job)
-	if err != jobman.ErrAllocatorNotSet {
+	if !errors.Is(err, jobman.ErrAllocatorNotSet) {
 		t.Fatalf("expected error: %v, got: %v", jobman.ErrAllocatorNotSet, err)
 	}
 
@@ -320,7 +323,7 @@ func TestManager_AllocationIssues(t *testing.T) {
 		}, nil
 	})
 	err = manager.Dispatch(job)
-	if err != jobman.ErrInvalidGroupID {
+	if !errors.Is(err, jobman.ErrInvalidGroupID) {
 		t.Fatalf("expected error: %v, got: %v", jobman.ErrInvalidGroupID, err)
 	}
 }

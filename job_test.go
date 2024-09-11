@@ -1,6 +1,7 @@
 package jobman_test
 
 import (
+	"errors"
 	"sync"
 	"testing"
 
@@ -79,7 +80,7 @@ func TestAllocation_IsValid(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			err := tt.allocation.IsValid(tt.expectShared)
-			if err != tt.expectError {
+			if !errors.Is(err, tt.expectError) {
 				t.Errorf("expected error: %v, got: %v", tt.expectError, err)
 			}
 		})

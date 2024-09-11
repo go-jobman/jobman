@@ -1,6 +1,7 @@
 package jobman_test
 
 import (
+	"errors"
 	"testing"
 
 	"gopkg.in/jobman.v0"
@@ -125,7 +126,7 @@ func TestPond_Close(t *testing.T) {
 	pond.Close()
 
 	job := &MockJob{id: "job1"}
-	if err := pond.Submit(job); err != jobman.ErrPondClosed {
+	if err := pond.Submit(job); !errors.Is(err, jobman.ErrPondClosed) {
 		t.Fatalf("expected error: %v, got: %v", jobman.ErrPondClosed, err)
 	}
 }
@@ -133,7 +134,7 @@ func TestPond_Close(t *testing.T) {
 func TestPond_SubmitNilJob(t *testing.T) {
 	pond := jobman.NewPartitionPond("test-pond", 10, 5)
 	err := pond.Submit(nil)
-	if err != jobman.ErrJobNil {
+	if !errors.Is(err, jobman.ErrJobNil) {
 		t.Fatalf("expected error: %v, got: %v", jobman.ErrJobNil, err)
 	}
 }
@@ -143,7 +144,7 @@ func TestPond_SubmitToClosedPond(t *testing.T) {
 	pond.Close()
 	job := &MockJob{id: "job1"}
 	err := pond.Submit(job)
-	if err != jobman.ErrPondClosed {
+	if !errors.Is(err, jobman.ErrPondClosed) {
 		t.Fatalf("expected error: %v, got: %v", jobman.ErrPondClosed, err)
 	}
 }
