@@ -389,6 +389,9 @@ func TestStartSharedWatch_PartitionPondsFull(t *testing.T) {
 	if !job3.IsProceeded() {
 		t.Error("expected job3 to be proceeded")
 	}
+
+	blockForHandling() // Allow some time for the handler to proceed
+	
 	if !job5.IsAccepted() {
 		t.Error("expected job5 to be accepted")
 	}
