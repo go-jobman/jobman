@@ -334,23 +334,34 @@ func TestManager_ErrorsWhilePondIsFull(t *testing.T) {
 	manager.SetAllocator(func(group, partition string) (jobman.Allocation, error) {
 		return jobman.Allocation{
 			GroupID:   group,
-			PondID:    partition,
-			IsShared:  partition == "",
+			PondID:    "",
+			IsShared:  true,
 			QueueSize: 1, // Small queue size for testing
 			PoolSize:  1,
 		}, nil
 	})
 
+	// should got (1+1+2) = 4 jobs to make it full
 	job1 := &MockJob{id: "job1", group: "group1"}
 	job2 := &MockJob{id: "job2", group: "group1"}
-	// should got (1+1+2) = 4 jobs to make it full
+	job3 := &MockJob{id: "job3", group: "group1"}
+	job4 := &MockJob{id: "job4", group: "group1"}
+	job5 := &MockJob{id: "job5", group: "group1"}
 
+	// first job should be accepted and then proceed
 	if err := manager.Dispatch(job1); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if err := manager.Dispatch(job2); err == nil {
+
+	// for the rest of the jobs, their status is undetermined
+	_ = manager.Dispatch(job2)
+	_ = manager.Dispatch(job3)
+	_ = manager.Dispatch(job4)
+
+	// now the pond is full, even the extra internal variables are full
+	if err := manager.Dispatch(job5); err == nil {
 		t.Fatal("expected queue full error, got nil")
-	} else {
-		t.Logf("expected error: %v -- %v", err, manager)
 	}
+
+	t.Logf("show the manager: %v -- %v", manager, manager.GetStat())
 }
