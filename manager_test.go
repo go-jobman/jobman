@@ -2,7 +2,6 @@ package jobman_test
 
 import (
 	"testing"
-	"time"
 
 	"gopkg.in/jobman.v0"
 )
@@ -215,9 +214,12 @@ func TestManager_DispatchToSharedPond(t *testing.T) {
 		t.Errorf("unexpected error: %v", err)
 	}
 
-	time.Sleep(50 * time.Millisecond)
+	blockForHandling() // Allow some time for the handler to proceed
 
 	sharedPond, err := manager.GetPond("group1", "")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
 	stat := sharedPond.GetStat()
 	if stat.DequeuedCount != 2 {
 		t.Errorf("expected dequeued count: 2, got: %d", stat.DequeuedCount)

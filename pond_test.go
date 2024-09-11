@@ -2,7 +2,6 @@ package jobman_test
 
 import (
 	"testing"
-	"time"
 
 	"gopkg.in/jobman.v0"
 )
@@ -115,7 +114,7 @@ func TestPond_Submit(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	time.Sleep(50 * time.Millisecond) // allow some time for the handler to proceed
+	blockForHandling() // allow some time for the handler to proceed
 	if !job.IsAccepted() {
 		t.Error("expected job to be accepted")
 	}
@@ -192,7 +191,7 @@ func TestPond_StartPartitionWatchAsync(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	time.Sleep(50 * time.Millisecond) // allow some time for the handler to proceed
+	blockForHandling() // allow some time for the handler to proceed
 	if !job.IsAccepted() {
 		t.Error("expected job to be accepted")
 	}
@@ -210,7 +209,7 @@ func TestPond_StartSharedWatchAsync(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	time.Sleep(50 * time.Millisecond) // allow some time for the handler to proceed
+	blockForHandling() // allow some time for the handler to proceed
 	if !job.IsAccepted() {
 		t.Error("expected job to be accepted")
 	}
