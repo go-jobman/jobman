@@ -231,3 +231,123 @@ func TestManager_DispatchToSharedPond(t *testing.T) {
 		t.Errorf("expected completed count: 2, got: %d", stat.CompletedCount)
 	}
 }
+
+// TestManager_GetPond ensures that GetPond correctly retrieves the pond for a given group and partition.
+func TestManager_GetPond(t *testing.T) {
+	manager := jobman.NewManager("test-manager")
+	manager.SetAllocator(func(group, partition string) (jobman.Allocation, error) {
+		return jobman.Allocation{
+			GroupID:   group,
+			PondID:    partition,
+			IsShared:  partition == "",
+			QueueSize: 10,
+			PoolSize:  5,
+		}, nil
+	})
+
+	job := &MockJob{id: "job1", group: "group1"}
+	if err := manager.Dispatch(job); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	// Test shared pond
+	sharedPond, err := manager.GetPond("group1", "")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if sharedPond == nil {
+		t.Fatal("expected shared pond, got nil")
+	}
+
+	// Test partition pond
+	manager.Dispatch(&MockJob{id: "job2", group: "group1", partition: "partition1"})
+	partPond, err := manager.GetPond("group1", "partition1")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if partPond == nil {
+		t.Fatal("expected partition pond, got nil")
+	}
+}
+
+// TestManager_GetGroup ensures that GetGroup correctly retrieves the group for a given group id.
+func TestManager_GetGroup(t *testing.T) {
+	manager := jobman.NewManager("test-manager")
+	manager.SetAllocator(func(group, partition string) (jobman.Allocation, error) {
+		return jobman.Allocation{
+			GroupID:   group,
+			PondID:    partition,
+			IsShared:  partition == "",
+			QueueSize: 10,
+			PoolSize:  5,
+		}, nil
+	})
+
+	job := &MockJob{id: "job1", group: "group1"}
+	if err := manager.Dispatch(job); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	group, err := manager.GetGroup("group1")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if group == nil {
+		t.Fatal("expected group, got nil")
+	}
+}
+
+// TestManager_AllocationIssues ensures that allocation issues for Dispatch are handled correctly.
+func TestManager_AllocationIssues(t *testing.T) {
+	manager := jobman.NewManager("test-manager")
+
+	// Test with nil allocator
+	manager.SetAllocator(nil)
+	job := &MockJob{id: "job1", group: "group1"}
+	err := manager.Dispatch(job)
+	if err != jobman.ErrAllocatorNotSet {
+		t.Fatalf("expected error: %v, got: %v", jobman.ErrAllocatorNotSet, err)
+	}
+
+	// Test with invalid allocation
+	manager.SetAllocator(func(group, partition string) (jobman.Allocation, error) {
+		return jobman.Allocation{
+			GroupID:   "",
+			PondID:    partition,
+			IsShared:  partition == "",
+			QueueSize: 10,
+			PoolSize:  5,
+		}, nil
+	})
+	err = manager.Dispatch(job)
+	if err != jobman.ErrInvalidGroupID {
+		t.Fatalf("expected error: %v, got: %v", jobman.ErrInvalidGroupID, err)
+	}
+}
+
+// TestManager_ErrorsWhilePondIsFull ensures that errors while the pond is full are handled correctly.
+func TestManager_ErrorsWhilePondIsFull(t *testing.T) {
+	manager := jobman.NewManager("test-manager")
+	manager.SetAllocator(func(group, partition string) (jobman.Allocation, error) {
+		return jobman.Allocation{
+			GroupID:   group,
+			PondID:    partition,
+			IsShared:  partition == "",
+			QueueSize: 1, // Small queue size for testing
+			PoolSize:  1,
+		}, nil
+	})
+
+	job1 := &MockJob{id: "job1", group: "group1"}
+	job2 := &MockJob{id: "job2", group: "group1"}
+
+	if err := manager.Dispatch(job1); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if err := manager.Dispatch(job2); err == nil {
+		t.Fatal("expected queue full error, got nil")
+	} else {
+		t.Logf("expected error: %v -- %v", err, manager)
+	}
+}
