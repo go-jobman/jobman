@@ -23,7 +23,7 @@ type Pond struct {
 	cancel    context.CancelFunc
 	lg        *zap.SugaredLogger
 	isClosed  bool
-	name      string
+	id        string
 	isShared  bool
 	queueSize int
 	poolSize  int
@@ -41,13 +41,13 @@ type Pond struct {
 }
 
 // NewPartitionPond creates a new partition pond with the specified queue and pool size.
-func NewPartitionPond(name string, queueSize, poolSize int) *Pond {
+func NewPartitionPond(id string, queueSize, poolSize int) *Pond {
 	ctx, cl := context.WithCancel(context.Background())
 	pd := &Pond{
-		lg:        log.With("pond", name),
+		lg:        log.With("pond", id),
 		ctx:       ctx,
 		cancel:    cl,
-		name:      name,
+		id:        id,
 		isShared:  false,
 		queueSize: queueSize,
 		poolSize:  poolSize,
@@ -58,23 +58,14 @@ func NewPartitionPond(name string, queueSize, poolSize int) *Pond {
 	return pd
 }
 
-func (p *Pond) String() string {
-	return fmt.Sprintf("🗳️Pond[%s](Shared:%s,Queue:%d,Pool:%d)",
-		p.name,
-		charBool(p.isShared),
-		p.queueSize,
-		p.poolSize,
-	)
-}
-
 // NewSharedPond creates a new shared pond with the specified queue and pool size.
-func NewSharedPond(name string, queueSize, poolSize int) *Pond {
+func NewSharedPond(id string, queueSize, poolSize int) *Pond {
 	ctx, cl := context.WithCancel(context.Background())
 	pd := &Pond{
-		lg:        log.With("pond", name),
+		lg:        log.With("pond", id),
 		ctx:       ctx,
 		cancel:    cl,
-		name:      name,
+		id:        id,
 		isShared:  true,
 		queueSize: queueSize,
 		poolSize:  poolSize,
@@ -86,6 +77,39 @@ func NewSharedPond(name string, queueSize, poolSize int) *Pond {
 	return pd
 }
 
+func (p *Pond) String() string {
+	return fmt.Sprintf("🗳️Pond[%s](Shared:%s,Queue:%d,Pool:%d)",
+		p.id,
+		charBool(p.isShared),
+		p.queueSize,
+		p.poolSize,
+	)
+}
+
+// GetID returns the ID of the pond.
+func (p *Pond) GetID() string {
+	return p.id
+}
+
+// GetQueue returns the queue of the pond.
+func (p *Pond) GetQueue() *fifo.Queue[*allocatedJob] {
+	return p.queue
+}
+
+// GetPool returns the pool of the pond.
+func (p *Pond) GetPool() *ants.Pool {
+	return p.pool
+}
+
+// ListExternalQueues returns the external queues of the pond.
+func (p *Pond) ListExternalQueues() []*fifo.Queue[*allocatedJob] {
+	p.mu.RLock()
+	defer p.mu.RUnlock()
+	ques := make([]*fifo.Queue[*allocatedJob], len(p.extQueues))
+	copy(ques, p.extQueues)
+	return ques
+}
+
 // Close closes the pond and releases all resources.
 func (p *Pond) Close() {
 	p.mu.Lock()
@@ -95,11 +119,6 @@ func (p *Pond) Close() {
 	p.cancel()
 	_ = p.queue.Close()
 	p.pool.Release()
-}
-
-// GetID returns the ID of the pond.
-func (p *Pond) GetID() string {
-	return p.name
 }
 
 // ResizeQueue resizes the queue of the pond.
@@ -147,6 +166,18 @@ func (p *Pond) ResizePool(newSize int) {
 	l.Debug("pool resized")
 }
 
+// Subscribe subscribes a queue to the list of external queues.
+func (p *Pond) Subscribe(q *fifo.Queue[*allocatedJob]) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
+	// do nothing if the pond is closed
+	if p.isClosed {
+		return
+	}
+	p.extQueues = append(p.extQueues, q)
+}
+
 // Submit submits a job to the pond.
 func (p *Pond) Submit(j Job) error {
 	if j == nil {
@@ -182,8 +213,7 @@ func (p *Pond) Submit(j Job) error {
 	}
 
 	// record the enqueue count
-	l.Debugw("job enqueued", "enqueue_count", p.cntEnque.Load())
-	p.cntEnque.Inc()
+	l.Debugw("job enqueued", "enqueue_count", p.cntEnque.Inc())
 
 	// notify the job is accepted
 	go func() {
@@ -193,28 +223,6 @@ func (p *Pond) Submit(j Job) error {
 
 	// return nil if the job is submitted successfully
 	return nil
-}
-
-// Subscribe subscribes a queue to the list of external queues.
-func (p *Pond) Subscribe(q *fifo.Queue[*allocatedJob]) {
-	p.mu.Lock()
-	defer p.mu.Unlock()
-
-	// do nothing if the pond is closed
-	if p.isClosed {
-		return
-	}
-	p.extQueues = append(p.extQueues, q)
-}
-
-// GetQueue returns the queue of the pond.
-func (p *Pond) GetQueue() *fifo.Queue[*allocatedJob] {
-	return p.queue
-}
-
-// GetPool returns the pool of the pond.
-func (p *Pond) GetPool() *ants.Pool {
-	return p.pool
 }
 
 // StartPartitionWatchAsync starts the pond watch loop asynchronously.
@@ -382,7 +390,7 @@ func createPool(size int) *ants.Pool {
 	return pl
 }
 
-func getPondName(ids ...string) string {
+func combinePondID(ids ...string) string {
 	if len(ids) == 0 {
 		return "_pond_"
 	}

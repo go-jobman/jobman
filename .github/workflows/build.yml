@@ -95,5 +95,3 @@ jobs:
           echo "## Revive Result" >> $GITHUB_STEP_SUMMARY
           printf '\n```\n' >> $GITHUB_STEP_SUMMARY
           revive -config revive.toml -formatter friendly ./... >> $GITHUB_STEP_SUMMARY
-          printf '```\n\n' >> $GITHUB_STEP_SUMMARY
-          printf '```\n\n' >> $GITHUB_STEP_SUMMARY

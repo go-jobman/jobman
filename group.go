@@ -17,7 +17,7 @@ type Group struct {
 	ctx    context.Context
 	cancel context.CancelFunc
 	lg     *zap.SugaredLogger
-	name   string
+	id     string
 	// core
 	sharedPond *Pond
 	partPonds  map[string]*Pond
@@ -27,15 +27,15 @@ type Group struct {
 }
 
 // NewGroup creates a new group of ponds.
-func NewGroup(name string, sharedQueue, sharedPool int) *Group {
+func NewGroup(id string, sharedQueue, sharedPool int) *Group {
 	ctx, cancel := context.WithCancel(context.Background())
-	sp := NewSharedPond(getPondName(name), sharedQueue, sharedPool)
+	sp := NewSharedPond(combinePondID(id), sharedQueue, sharedPool)
 	sp.StartSharedWatchAsync()
 	return &Group{
 		ctx:        ctx,
 		cancel:     cancel,
-		lg:         log.With("group", name),
-		name:       name,
+		lg:         log.With("group", id),
+		id:         id,
 		sharedPond: sp,
 		partPonds:  make(map[string]*Pond),
 	}
@@ -44,11 +44,27 @@ func NewGroup(name string, sharedQueue, sharedPool int) *Group {
 func (g *Group) String() string {
 	return fmt.Sprintf(
 		"🗂️Group[%s](Ponds:%d,Received:%d,Enqueued:%d)",
-		g.name,
+		g.id,
 		len(g.partPonds)+1, // add 1 for shared pond
 		g.cntRecv.Load(),
 		g.cntEnque.Load(),
 	)
+}
+
+// GetID returns the id of the group.
+func (g *Group) GetID() string {
+	return g.id
+}
+
+// GetPond returns the pond in the group for the given partition. If partition is empty, it returns the shared pond.
+func (g *Group) GetPond(partition string) *Pond {
+	g.mu.RLock()
+	defer g.mu.RUnlock()
+
+	if partition == "" {
+		return g.sharedPond
+	}
+	return g.partPonds[partition]
 }
 
 // InitializePond initializes the pond for the given partition.
@@ -67,21 +83,10 @@ func (g *Group) InitializePond(partition string, queueSize, poolSize int) {
 	}
 
 	// create a new partition pond
-	pd := NewPartitionPond(getPondName(g.name, partition), queueSize, poolSize)
+	pd := NewPartitionPond(combinePondID(g.id, partition), queueSize, poolSize)
 	pd.StartPartitionWatchAsync()
 
 	// save the partition pond
 	g.sharedPond.Subscribe(pd.GetQueue())
 	g.partPonds[partition] = pd
-}
-
-// GetPond returns the pond for the given partition.
-func (g *Group) GetPond(partition string) *Pond {
-	g.mu.RLock()
-	defer g.mu.RUnlock()
-
-	if partition == "" {
-		return g.sharedPond
-	}
-	return g.partPonds[partition]
 }
