@@ -342,11 +342,11 @@ func TestManager_ErrorsWhilePondIsFull(t *testing.T) {
 	})
 
 	// should got (1+1+2) = 4 jobs to make it full
-	job1 := &MockJob{id: "job1", group: "group1"}
-	job2 := &MockJob{id: "job2", group: "group1"}
-	job3 := &MockJob{id: "job3", group: "group1"}
-	job4 := &MockJob{id: "job4", group: "group1"}
-	job5 := &MockJob{id: "job5", group: "group1"}
+	job1 := &MockJob{id: "job1", group: "group1", slow: true}
+	job2 := &MockJob{id: "job2", group: "group1", slow: true}
+	job3 := &MockJob{id: "job3", group: "group1", slow: true}
+	job4 := &MockJob{id: "job4", group: "group1", slow: true}
+	job5 := &MockJob{id: "job5", group: "group1", slow: true}
 
 	// first job should be accepted and then proceed
 	if err := manager.Dispatch(job1); err != nil {
@@ -354,11 +354,14 @@ func TestManager_ErrorsWhilePondIsFull(t *testing.T) {
 	}
 
 	// for the rest of the jobs, their status is undetermined
-	_ = manager.Dispatch(job2)
-	_ = manager.Dispatch(job3)
-	_ = manager.Dispatch(job4)
+	for _, job := range []*MockJob{job2, job3, job4} {
+		blockForHandling()
+		err := manager.Dispatch(job)
+		t.Logf("submit job %s: %v", job.ID(), err)
+	}
 
 	// now the pond is full, even the extra internal variables are full
+	blockForHandling()
 	if err := manager.Dispatch(job5); err == nil {
 		t.Fatal("expected queue full error, got nil")
 	}

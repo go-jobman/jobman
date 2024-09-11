@@ -4,6 +4,7 @@ import (
 	"errors"
 	"sync"
 	"testing"
+	"time"
 
 	"gopkg.in/jobman.v0"
 )
@@ -96,6 +97,7 @@ type MockJob struct {
 	accepted  bool
 	rejected  bool
 	proceeded bool
+	slow      bool
 }
 
 func (mj *MockJob) ID() string {
@@ -126,6 +128,9 @@ func (mj *MockJob) Proceed() {
 	mj.mu.Lock()
 	defer mj.mu.Unlock()
 	mj.proceeded = true
+	if mj.slow {
+		<-time.After(jobman.SharedPondCheckInterval * 20)
+	}
 }
 
 // Helper methods to check the state of the job in tests
