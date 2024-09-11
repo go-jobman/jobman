@@ -1,8 +1,8 @@
 package jobman_test
 
 import (
+	"errors"
 	"testing"
-	"time"
 
 	"gopkg.in/jobman.v0"
 )
@@ -115,7 +115,7 @@ func TestPond_Submit(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	time.Sleep(50 * time.Millisecond) // allow some time for the handler to proceed
+	blockForHandling() // allow some time for the handler to proceed
 	if !job.IsAccepted() {
 		t.Error("expected job to be accepted")
 	}
@@ -126,7 +126,7 @@ func TestPond_Close(t *testing.T) {
 	pond.Close()
 
 	job := &MockJob{id: "job1"}
-	if err := pond.Submit(job); err != jobman.ErrPondClosed {
+	if err := pond.Submit(job); !errors.Is(err, jobman.ErrPondClosed) {
 		t.Fatalf("expected error: %v, got: %v", jobman.ErrPondClosed, err)
 	}
 }
@@ -134,7 +134,7 @@ func TestPond_Close(t *testing.T) {
 func TestPond_SubmitNilJob(t *testing.T) {
 	pond := jobman.NewPartitionPond("test-pond", 10, 5)
 	err := pond.Submit(nil)
-	if err != jobman.ErrJobNil {
+	if !errors.Is(err, jobman.ErrJobNil) {
 		t.Fatalf("expected error: %v, got: %v", jobman.ErrJobNil, err)
 	}
 }
@@ -144,7 +144,7 @@ func TestPond_SubmitToClosedPond(t *testing.T) {
 	pond.Close()
 	job := &MockJob{id: "job1"}
 	err := pond.Submit(job)
-	if err != jobman.ErrPondClosed {
+	if !errors.Is(err, jobman.ErrPondClosed) {
 		t.Fatalf("expected error: %v, got: %v", jobman.ErrPondClosed, err)
 	}
 }
@@ -192,7 +192,7 @@ func TestPond_StartPartitionWatchAsync(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	time.Sleep(50 * time.Millisecond) // allow some time for the handler to proceed
+	blockForHandling() // allow some time for the handler to proceed
 	if !job.IsAccepted() {
 		t.Error("expected job to be accepted")
 	}
@@ -210,7 +210,7 @@ func TestPond_StartSharedWatchAsync(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	time.Sleep(50 * time.Millisecond) // allow some time for the handler to proceed
+	blockForHandling() // allow some time for the handler to proceed
 	if !job.IsAccepted() {
 		t.Error("expected job to be accepted")
 	}
@@ -224,5 +224,285 @@ func TestPond_GetSharedPondQueue(t *testing.T) {
 
 	if l := len(sharedPond.ListExternalQueues()); l != 1 {
 		t.Errorf("expected 1 external queue, got: %d", l)
+	}
+}
+
+func TestStartSharedWatch_BasicFunctionality(t *testing.T) {
+	sharedPond := jobman.NewSharedPond("shared-pond", 10, 5)
+	sharedPond.StartSharedWatchAsync()
+
+	job := &MockJob{id: "job1"}
+	err := sharedPond.Submit(job)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	blockForHandling() // Allow some time for the handler to proceed
+
+	if !job.IsAccepted() {
+		t.Error("expected job to be accepted")
+	}
+	if !job.IsProceeded() {
+		t.Error("expected job to be proceeded")
+	}
+}
+
+func TestStartSharedWatch_ExternalQueuesHandling(t *testing.T) {
+	sharedPond := jobman.NewSharedPond("shared-pond", 10, 5)
+	partPond := jobman.NewPartitionPond("part-pond", 10, 5)
+	sharedPond.Subscribe(partPond.GetQueue())
+	sharedPond.StartSharedWatchAsync()
+
+	job := &MockJob{id: "job1"}
+	err := partPond.Submit(job)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	blockForHandling() // Allow some time for the handler to proceed
+
+	if !job.IsAccepted() {
+		t.Error("expected job to be accepted")
+	}
+	if !job.IsProceeded() {
+		t.Error("expected job to be proceeded")
+	}
+}
+
+func TestStartSharedWatch_ConcurrentSubmissions(t *testing.T) {
+	sharedPond := jobman.NewSharedPond("shared-pond", 10, 5)
+	sharedPond.StartSharedWatchAsync()
+
+	job1 := &MockJob{id: "job1"}
+	job2 := &MockJob{id: "job2"}
+
+	err := sharedPond.Submit(job1)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	err = sharedPond.Submit(job2)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	blockForHandling() // Allow some time for the handler to proceed
+
+	if !job1.IsAccepted() {
+		t.Error("expected job1 to be accepted")
+	}
+	if !job1.IsProceeded() {
+		t.Error("expected job1 to be proceeded")
+	}
+	if !job2.IsAccepted() {
+		t.Error("expected job2 to be accepted")
+	}
+	if !job2.IsProceeded() {
+		t.Error("expected job2 to be proceeded")
+	}
+}
+
+func TestStartSharedWatch_EmptyExternalQueues(t *testing.T) {
+	sharedPond := jobman.NewSharedPond("shared-pond", 10, 5)
+	partPond1 := jobman.NewPartitionPond("part-pond1", 10, 5)
+	partPond2 := jobman.NewPartitionPond("part-pond2", 10, 5)
+	sharedPond.Subscribe(partPond1.GetQueue())
+	sharedPond.Subscribe(partPond2.GetQueue())
+	sharedPond.StartSharedWatchAsync()
+
+	job := &MockJob{id: "job1"}
+	err := sharedPond.Submit(job)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	blockForHandling() // Allow some time for the handler to proceed
+
+	if !job.IsAccepted() {
+		t.Error("expected job to be accepted")
+	}
+	if !job.IsProceeded() {
+		t.Error("expected job to be proceeded")
+	}
+}
+
+func TestStartSharedWatch_PartitionPondsFull(t *testing.T) {
+	sharedPond := jobman.NewSharedPond("shared-pond", 5, 5)
+	partPond1 := jobman.NewPartitionPond("part-pond1", 1, 1) // Small queue size for testing
+	partPond2 := jobman.NewPartitionPond("part-pond2", 1, 1) // Small queue size for testing
+	sharedPond.Subscribe(partPond1.GetQueue())
+	sharedPond.Subscribe(partPond2.GetQueue())
+
+	job1 := &MockJob{id: "job1"}
+	job2 := &MockJob{id: "job2"}
+	job3 := &MockJob{id: "job3"}
+	job4 := &MockJob{id: "job4"}
+	job5 := &MockJob{id: "job5"}
+	job6 := &MockJob{id: "job6"}
+	job7 := &MockJob{id: "job7"}
+
+	// Fill partition ponds
+	err := partPond1.Submit(job1)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	err = partPond1.Submit(job2)
+	if err == nil {
+		t.Fatal("expected queue full error, got nil")
+	}
+	err = partPond2.Submit(job3)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	err = partPond2.Submit(job4)
+	if err == nil {
+		t.Fatal("expected queue full error, got nil")
+	}
+
+	// Allow some time for the handler to proceed
+	sharedPond.StartSharedWatchAsync()
+	blockForHandling()
+
+	// Submit jobs to partition pond later
+	err = partPond1.Submit(job5)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	err = partPond2.Submit(job6)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	err = sharedPond.Submit(job7)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	blockForHandling() // Allow some time for the handler to proceed
+
+	if !job1.IsAccepted() {
+		t.Error("expected job1 to be accepted")
+	}
+	if !job1.IsProceeded() {
+		t.Error("expected job1 to be proceeded")
+	}
+	if !job3.IsAccepted() {
+		t.Error("expected job3 to be accepted")
+	}
+	if !job3.IsProceeded() {
+		t.Error("expected job3 to be proceeded")
+	}
+
+	blockForHandling() // Allow some time for the handler to proceed
+
+	if !job5.IsAccepted() {
+		t.Error("expected job5 to be accepted")
+	}
+	if !job5.IsProceeded() {
+		t.Error("expected job5 to be proceeded")
+	}
+	if !job6.IsAccepted() {
+		t.Error("expected job6 to be accepted")
+	}
+	if !job6.IsProceeded() {
+		t.Error("expected job6 to be proceeded")
+	}
+	if !job7.IsAccepted() {
+		t.Error("expected job7 to be accepted")
+	}
+	if !job7.IsProceeded() {
+		t.Error("expected job7 to be proceeded")
+	}
+}
+
+func TestStartSharedWatch_SharedPondsFull(t *testing.T) {
+	sharedPond := jobman.NewSharedPond("shared-pond", 3, 1)
+	partPond1 := jobman.NewPartitionPond("part-pond1", 1, 1) // Small queue size for testing
+	partPond2 := jobman.NewPartitionPond("part-pond2", 1, 1) // Small queue size for testing
+	sharedPond.Subscribe(partPond1.GetQueue())
+	sharedPond.Subscribe(partPond2.GetQueue())
+	sharedPond.StartSharedWatchAsync()
+
+	job1 := &MockJob{id: "job1"}
+	job2 := &MockJob{id: "job2"}
+	job3 := &MockJob{id: "job3"}
+	job4 := &MockJob{id: "job4"}
+	job5 := &MockJob{id: "job5"}
+	job6 := &MockJob{id: "job6"}
+	job7 := &MockJob{id: "job7"}
+	job8 := &MockJob{id: "job8"}
+	job9 := &MockJob{id: "job9"}
+	job10 := &MockJob{id: "job10"}
+
+	// Submit jobs to shared pond to make it busy
+	err := sharedPond.Submit(job5)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	err = sharedPond.Submit(job6)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	err = sharedPond.Submit(job7)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	_ = sharedPond.Submit(job8) // this job will be rejected or accepted based on the handling speed
+
+	// Fill partition ponds
+	err = partPond1.Submit(job1)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	err = partPond1.Submit(job2)
+	if err == nil {
+		t.Fatal("expected queue full error, got nil")
+	}
+	err = partPond2.Submit(job3)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	err = partPond2.Submit(job4)
+	if err == nil {
+		t.Fatal("expected queue full error, got nil")
+	}
+
+	// Start partition watch
+	partPond1.StartPartitionWatchAsync()
+	partPond2.StartPartitionWatchAsync()
+
+	blockForHandling() // Allow some time for the handler to proceed
+
+	// Submit additional jobs to partition ponds after shared pond is busy
+	err = partPond1.Submit(job9)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	err = partPond2.Submit(job10)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	blockForHandling() // Allow some time for the handler to proceed
+
+	// Check statuses of all jobs
+	if !job1.IsAccepted() || !job1.IsProceeded() {
+		t.Error("expected job1 to be accepted and proceeded")
+	}
+	if !job3.IsAccepted() || !job3.IsProceeded() {
+		t.Error("expected job3 to be accepted and proceeded")
+	}
+	if !job5.IsAccepted() || !job5.IsProceeded() {
+		t.Error("expected job5 to be accepted and proceeded")
+	}
+	if !job6.IsAccepted() || !job6.IsProceeded() {
+		t.Error("expected job6 to be accepted and proceeded")
+	}
+	if !job7.IsAccepted() || !job7.IsProceeded() {
+		t.Error("expected job7 to be accepted and proceeded")
+	}
+	if !job9.IsAccepted() {
+		t.Error("expected job9 to be accepted")
+	}
+	if !job10.IsAccepted() {
+		t.Error("expected job10 to be accepted")
 	}
 }

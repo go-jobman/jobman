@@ -30,19 +30,18 @@ type Allocation struct {
 
 // IsValid checks if the allocation is valid.
 func (a Allocation) IsValid(expectShared bool) error {
-	if a.GroupID == "" {
+	switch {
+	case a.GroupID == "":
 		return ErrInvalidGroupID
-	}
-	if a.QueueSize <= 0 {
+	case a.QueueSize <= 0:
 		return ErrInvalidQueueSize
-	}
-	if a.PoolSize <= 0 {
+	case a.PoolSize <= 0:
 		return ErrInvalidPoolSize
-	}
-	if expectShared && !a.IsShared {
+	case expectShared && !a.IsShared:
 		return ErrExpectedSharedPond
+	default:
+		return nil
 	}
-	return nil
 }
 
 // AllocatorFunc is a function type that defines the signature for allocating a job to a pond of a group.
@@ -50,8 +49,8 @@ func (a Allocation) IsValid(expectShared bool) error {
 // If the partition is empty, the job should be allocated to a shared pond, and the size of the queue and pool of the shared pond should be returned.
 type AllocatorFunc func(group, partition string) (Allocation, error)
 
-// allocatedJob is actually a wrapper for job with an index in the pond and the lock, used for queueing.
-type allocatedJob struct {
+// AllocatedJob is actually a wrapper for job with an index in the pond and the lock, used for queueing.
+type AllocatedJob struct {
 	readyProc chan struct{}
 	PondIndex int64
 	SubmitAt  time.Time

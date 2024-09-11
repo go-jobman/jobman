@@ -43,3 +43,7 @@ func TestSharedPondConstants(t *testing.T) {
 		t.Errorf("expected: %d, got: %d", 3, jobman.SharedPondDequeueRetryLimit)
 	}
 }
+
+func blockForHandling() {
+	time.Sleep(jobman.SharedPondCheckInterval * 2)
+}
