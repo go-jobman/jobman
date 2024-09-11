@@ -357,12 +357,15 @@ func TestStartSharedWatch_PartitionPondsFull(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected queue full error, got nil")
 	}
-	// Submit jobs to shared pond
-	err = sharedPond.Submit(job5)
+
+	blockForHandling() // Allow some time for the handler to proceed
+
+	// Submit jobs to partition pond later
+	err = partPond1.Submit(job5)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	err = sharedPond.Submit(job6)
+	err = partPond2.Submit(job6)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
