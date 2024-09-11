@@ -331,7 +331,6 @@ func TestStartSharedWatch_PartitionPondsFull(t *testing.T) {
 	partPond2 := jobman.NewPartitionPond("part-pond2", 1, 1) // Small queue size for testing
 	sharedPond.Subscribe(partPond1.GetQueue())
 	sharedPond.Subscribe(partPond2.GetQueue())
-	sharedPond.StartSharedWatchAsync()
 
 	job1 := &MockJob{id: "job1"}
 	job2 := &MockJob{id: "job2"}
@@ -359,7 +358,9 @@ func TestStartSharedWatch_PartitionPondsFull(t *testing.T) {
 		t.Fatal("expected queue full error, got nil")
 	}
 
-	blockForHandling() // Allow some time for the handler to proceed
+	// Allow some time for the handler to proceed
+	sharedPond.StartSharedWatchAsync()
+	blockForHandling()
 
 	// Submit jobs to partition pond later
 	err = partPond1.Submit(job5)
@@ -391,7 +392,7 @@ func TestStartSharedWatch_PartitionPondsFull(t *testing.T) {
 	}
 
 	blockForHandling() // Allow some time for the handler to proceed
-	
+
 	if !job5.IsAccepted() {
 		t.Error("expected job5 to be accepted")
 	}
