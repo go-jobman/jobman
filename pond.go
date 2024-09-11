@@ -178,7 +178,7 @@ func (p *Pond) Subscribe(q *fifo.Queue[*AllocatedJob]) {
 	p.extQueues = append(p.extQueues, q)
 }
 
-// Submit submits a job to the pond.
+// Submit submits a job to the pond. If blockingCallback is true, the job's callback will be executed in the same goroutine.
 func (p *Pond) Submit(j Job, blockingCallback bool) error {
 	if j == nil {
 		return ErrJobNil
@@ -205,6 +205,7 @@ func (p *Pond) Submit(j Job, blockingCallback bool) error {
 
 		// notify the job is rejected
 		if blockingCallback {
+			l.Debugw("job rejected, waiting for callback to proceed")
 			j.OnRejected()
 			close(ja.readyProc)
 		} else {
@@ -222,6 +223,7 @@ func (p *Pond) Submit(j Job, blockingCallback bool) error {
 
 	// notify the job is accepted
 	if blockingCallback {
+		l.Debugw("job accepted, waiting for callback to proceed")
 		j.OnAccepted()
 		close(ja.readyProc)
 	} else {

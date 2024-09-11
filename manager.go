@@ -40,8 +40,8 @@ type Manager struct {
 }
 
 // NewManager creates a new Manager with the specified id.
-func NewManager(name string) *Manager {
-	return &Manager{
+func NewManager(name string, opts ...ManagerOption) *Manager {
+	m := &Manager{
 		lg:   log.With("manager", name),
 		name: name,
 		alloc: func(group, partition string) (Allocation, error) {
@@ -56,6 +56,10 @@ func NewManager(name string) *Manager {
 		},
 		groups: make(map[string]*Group),
 	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
 }
 
 func (m *Manager) String() string {
