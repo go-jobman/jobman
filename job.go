@@ -49,8 +49,8 @@ func (a Allocation) IsValid(expectShared bool) error {
 // If the partition is empty, the job should be allocated to a shared pond, and the size of the queue and pool of the shared pond should be returned.
 type AllocatorFunc func(group, partition string) (Allocation, error)
 
-// allocatedJob is actually a wrapper for job with an index in the pond and the lock, used for queueing.
-type allocatedJob struct {
+// AllocatedJob is actually a wrapper for job with an index in the pond and the lock, used for queueing.
+type AllocatedJob struct {
 	readyProc chan struct{}
 	PondIndex int64
 	SubmitAt  time.Time
