@@ -202,19 +202,7 @@ func (p *Pond) Submit(j Job, blockingCallback bool) error {
 	// attempt to enqueue the job, fail if the queue is full
 	if err := p.queue.TryEnqueue(ja); err != nil {
 		l.Warnw("enqueue failed", zap.Error(err))
-
-		// notify the job is rejected
-		if blockingCallback {
-			l.Debugw("job rejected, waiting for callback to proceed")
-			j.OnRejected()
-			close(ja.readyProc)
-		} else {
-			go func() {
-				defer close(ja.readyProc)
-				j.OnRejected()
-			}()
-		}
-
+		p.notifyJob(ja, blockingCallback, false)
 		return err
 	}
 
@@ -222,19 +210,32 @@ func (p *Pond) Submit(j Job, blockingCallback bool) error {
 	l.Debugw("job enqueued", "enqueue_count", p.cntEnque.Inc())
 
 	// notify the job is accepted
+	p.notifyJob(ja, blockingCallback, true)
+
+	// return nil if the job is submitted successfully
+	return nil
+}
+
+// notifyJob notifies the job of acceptance or rejection.
+func (p *Pond) notifyJob(ja *AllocatedJob, blockingCallback bool, accepted bool) {
+	j := ja.Job
 	if blockingCallback {
-		l.Debugw("job accepted, waiting for callback to proceed")
-		j.OnAccepted()
+		if accepted {
+			j.OnAccepted()
+		} else {
+			j.OnRejected()
+		}
 		close(ja.readyProc)
 	} else {
 		go func() {
 			defer close(ja.readyProc)
-			j.OnAccepted()
+			if accepted {
+				j.OnAccepted()
+			} else {
+				j.OnRejected()
+			}
 		}()
 	}
-
-	// return nil if the job is submitted successfully
-	return nil
 }
 
 // StartPartitionWatchAsync starts the pond watch loop asynchronously.
