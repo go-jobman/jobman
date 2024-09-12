@@ -8,6 +8,23 @@ import (
 	"go.uber.org/zap"
 )
 
+// ManagerOption is the type for functional options for the manager.
+type ManagerOption func(*Manager)
+
+// WithBlockingCallback is an option to block the dispatch until the callback is done.
+func WithBlockingCallback() ManagerOption {
+	return func(m *Manager) {
+		m.blockCallback = true
+	}
+}
+
+// WithResizeOnDispatch is an option to resize the pond on dispatch if the allocation is different.
+func WithResizeOnDispatch() ManagerOption {
+	return func(m *Manager) {
+		m.resizeOnDispatch = true
+	}
+}
+
 // Manager is the main entry point for submitting jobs.
 type Manager struct {
 	mu     sync.RWMutex
@@ -15,32 +32,31 @@ type Manager struct {
 	name   string
 	alloc  AllocatorFunc
 	groups map[string]*Group
+	// options
+	blockCallback    bool
+	resizeOnDispatch bool
 	// counters
 	cntRecv atomic.Int64
 }
 
 // NewManager creates a new Manager with the specified id.
-func NewManager(name string) *Manager {
-	return &Manager{
-		lg:   log.With("manager", name),
-		name: name,
-		alloc: func(group, partition string) (Allocation, error) {
-			// default allocation: 2 queue size, 1 pool size
-			return Allocation{
-				GroupID:   group,
-				PondID:    partition,
-				IsShared:  partition == "",
-				QueueSize: 2,
-				PoolSize:  1,
-			}, nil
-		},
+func NewManager(name string, opts ...ManagerOption) *Manager {
+	m := &Manager{
+		lg:     log.With("manager", name),
+		name:   name,
+		alloc:  MakeSimpleAllocator(2, 1), // default allocation: 2 queue size, 1 pool size
 		groups: make(map[string]*Group),
 	}
+	// apply options
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
 }
 
 func (m *Manager) String() string {
 	return fmt.Sprintf(
-		"📨Manager[%s](Groups:%d,Received:%d)",
+		emojiManager+"Manager[%s](Groups:%d,Received:%d)",
 		m.name,
 		len(m.groups),
 		m.cntRecv.Load(),
@@ -176,7 +192,7 @@ func (m *Manager) DispatchWithAllocation(j Job) (*Allocation, error) {
 	}
 	grp.cntRecv.Inc()
 
-	// get the pond and submit the job
+	// get the pond
 	if al.IsShared {
 		al.PondID = "" // reset the pond id for the shared pool
 	}
@@ -185,7 +201,15 @@ func (m *Manager) DispatchWithAllocation(j Job) (*Allocation, error) {
 		l.Warnw("pond not found", "group_id", al.GroupID, "pond_id", al.PondID) // it should not happen
 		return nil, ErrPondNotFound
 	}
-	if err := pd.Submit(j); err != nil {
+
+	// auto resize the pond if necessary
+	if m.resizeOnDispatch {
+		pd.ResizeQueue(al.QueueSize)
+		pd.ResizePool(al.PoolSize)
+	}
+
+	// submit the job
+	if err := pd.Submit(j, m.blockCallback); err != nil {
 		l.Warnw("job dispatch failed", "group_id", al.GroupID, "pond_id", al.PondID, zap.Error(err))
 		return nil, err
 	}

@@ -10,7 +10,7 @@ func TestPond_GetStat(t *testing.T) {
 	pond := jobman.NewPartitionPond("test-pond", 10, 5)
 	job := &MockJob{id: "job1"}
 
-	pond.Submit(job)
+	pond.Submit(job, false)
 	blockForHandling() // Allow some time for the job to proceed
 
 	stat := pond.GetStat()
@@ -20,11 +20,13 @@ func TestPond_GetStat(t *testing.T) {
 	if stat.EnqueuedCount != 1 {
 		t.Errorf("expected enqueued count: %d, got: %d", 1, stat.EnqueuedCount)
 	}
+	t.Logf("pond stat: %s", stat)
 }
 
 func TestGroup_GetStat(t *testing.T) {
 	group := jobman.NewGroup("test-group", 10, 5)
 	group.InitializePond("partition-1", 5, 3)
+	group.InitializePond("partition-2", 5, 3)
 
 	stat := group.GetStat()
 	if stat.ReceivedCount != 0 {
@@ -33,9 +35,10 @@ func TestGroup_GetStat(t *testing.T) {
 	if stat.EnqueuedCount != 0 {
 		t.Errorf("expected enqueued count: %d, got: %d", 0, stat.EnqueuedCount)
 	}
-	if stat.PondCapacity != 2 {
-		t.Errorf("expected pond capacity: %d, got: %d", 2, stat.PondCapacity)
+	if stat.PondCapacity != 3 {
+		t.Errorf("expected pond capacity: %d, got: %d", 3, stat.PondCapacity)
 	}
+	t.Logf("group stat: %s", stat)
 }
 
 func TestManager_GetStat(t *testing.T) {
@@ -52,14 +55,21 @@ func TestManager_GetStat(t *testing.T) {
 
 	job := &MockJob{id: "job1", group: "group1"}
 	if err := manager.Dispatch(job); err != nil {
-		t.Fatalf("unexpected error: %v", err)
+		t.Errorf("unexpected error: %v", err)
+	}
+	job2 := &MockJob{id: "job2", group: "group2"}
+	if err := manager.Dispatch(job2); err != nil {
+		t.Errorf("unexpected error: %v", err)
 	}
 
+	blockForHandling()
+
 	stat := manager.GetStat()
-	if stat.ReceivedCount != 1 {
-		t.Errorf("expected received count: %d, got: %d", 1, stat.ReceivedCount)
+	if stat.ReceivedCount != 2 {
+		t.Errorf("expected received count: %d, got: %d", 2, stat.ReceivedCount)
 	}
-	if stat.GroupCapacity != 1 {
-		t.Errorf("expected group capacity: %d, got: %d", 1, stat.GroupCapacity)
+	if stat.GroupCapacity != 2 {
+		t.Errorf("expected group capacity: %d, got: %d", 2, stat.GroupCapacity)
 	}
+	t.Logf("manager stat: %s", stat)
 }

@@ -1,5 +1,9 @@
 package jobman
 
+import (
+	"fmt"
+)
+
 // PondStat represents the statistics of a pond.
 type PondStat struct {
 	ReceivedCount  int64 `json:"job_received"`
@@ -11,6 +15,21 @@ type PondStat struct {
 	QueueFree      int   `json:"queue_free"`
 	PoolCapacity   int   `json:"pool_cap"`
 	PoolFree       int   `json:"pool_free"`
+}
+
+// String returns a string representation of the PondStat struct.
+func (ps PondStat) String() string {
+	return fmt.Sprintf(emojiStat+"PondStat(Received=%d,Enqueued=%d,Dequeued=%d,Proceeded=%d,Completed=%d,QueueCap=%d,QueueFree=%d,PoolCap=%d,PoolFree=%d)",
+		ps.ReceivedCount,
+		ps.EnqueuedCount,
+		ps.DequeuedCount,
+		ps.ProceededCount,
+		ps.CompletedCount,
+		ps.QueueCapacity,
+		ps.QueueFree,
+		ps.PoolCapacity,
+		ps.PoolFree,
+	)
 }
 
 // GetStat returns the statistics of the pond.
@@ -41,6 +60,42 @@ type GroupStat struct {
 	PondStats     map[string]*PondStat `json:"pond_stats"`
 }
 
+// String returns a string representation of the GroupStat struct.
+func (gs GroupStat) String() string {
+	totalReceived := gs.ReceivedCount
+	totalEnqueued := gs.EnqueuedCount
+	totalDequeued := int64(0)
+	totalProceeded := int64(0)
+	totalCompleted := int64(0)
+	totalQueueCap := 0
+	totalQueueFree := 0
+	totalPoolCap := 0
+	totalPoolFree := 0
+
+	for _, ps := range gs.PondStats {
+		totalDequeued += ps.DequeuedCount
+		totalProceeded += ps.ProceededCount
+		totalCompleted += ps.CompletedCount
+		totalQueueCap += ps.QueueCapacity
+		totalQueueFree += ps.QueueFree
+		totalPoolCap += ps.PoolCapacity
+		totalPoolFree += ps.PoolFree
+	}
+
+	return fmt.Sprintf(emojiStat+"GroupStat(Ponds=%d,Received=%d,Enqueued=%d,Dequeued=%d,Proceeded=%d,Completed=%d,QueueCap=%d,QueueFree=%d,PoolCap=%d,PoolFree=%d)",
+		gs.PondCapacity,
+		totalReceived,
+		totalEnqueued,
+		totalDequeued,
+		totalProceeded,
+		totalCompleted,
+		totalQueueCap,
+		totalQueueFree,
+		totalPoolCap,
+		totalPoolFree,
+	)
+}
+
 // GetStat returns the statistics of the group.
 func (g *Group) GetStat() *GroupStat {
 	g.mu.RLock()
@@ -65,6 +120,48 @@ type ManagerStat struct {
 	ReceivedCount int64                 `json:"job_received"`
 	GroupCapacity int                   `json:"group_cap"`
 	GroupStats    map[string]*GroupStat `json:"group_stats"`
+}
+
+// String returns a string representation of the ManagerStat struct.
+func (ms ManagerStat) String() string {
+	totalPonds := 0
+	totalReceived := ms.ReceivedCount
+	totalEnqueued := int64(0)
+	totalDequeued := int64(0)
+	totalProceeded := int64(0)
+	totalCompleted := int64(0)
+	totalQueueCap := 0
+	totalQueueFree := 0
+	totalPoolCap := 0
+	totalPoolFree := 0
+
+	for _, gs := range ms.GroupStats {
+		totalPonds += gs.PondCapacity
+		totalEnqueued += gs.EnqueuedCount
+		for _, ps := range gs.PondStats {
+			totalDequeued += ps.DequeuedCount
+			totalProceeded += ps.ProceededCount
+			totalCompleted += ps.CompletedCount
+			totalQueueCap += ps.QueueCapacity
+			totalQueueFree += ps.QueueFree
+			totalPoolCap += ps.PoolCapacity
+			totalPoolFree += ps.PoolFree
+		}
+	}
+
+	return fmt.Sprintf(emojiStat+"ManagerStat(Groups=%d,Ponds=%d,Received=%d,Enqueued=%d,Dequeued=%d,Proceeded=%d,Completed=%d,QueueCap=%d,QueueFree=%d,PoolCap=%d,PoolFree=%d)",
+		ms.GroupCapacity,
+		totalPonds,
+		totalReceived,
+		totalEnqueued,
+		totalDequeued,
+		totalProceeded,
+		totalCompleted,
+		totalQueueCap,
+		totalQueueFree,
+		totalPoolCap,
+		totalPoolFree,
+	)
 }
 
 // GetStat returns the statistics of the manager.

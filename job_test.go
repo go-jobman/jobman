@@ -4,6 +4,7 @@ import (
 	"errors"
 	"sync"
 	"testing"
+	"time"
 
 	"gopkg.in/jobman.v0"
 )
@@ -87,6 +88,51 @@ func TestAllocation_IsValid(t *testing.T) {
 	}
 }
 
+// Test MakeSimpleAllocator function
+func TestMakeSimpleAllocator(t *testing.T) {
+	allocator := jobman.MakeSimpleAllocator(10, 5)
+
+	allocation, err := allocator("group1", "")
+	if err != nil {
+		t.Errorf("unexpected error: %v", err)
+	}
+	if err := allocation.IsValid(true); err != nil {
+		t.Errorf("unexpected error: %v", err)
+	}
+	if allocation.GroupID != "group1" {
+		t.Errorf("expected group ID: %s, got: %s", "group1", allocation.GroupID)
+	}
+	if allocation.QueueSize != 10 {
+		t.Errorf("expected queue size: %d, got: %d", 10, allocation.QueueSize)
+	}
+	if allocation.PoolSize != 5 {
+		t.Errorf("expected pool size: %d, got: %d", 5, allocation.PoolSize)
+	}
+	if !allocation.IsShared {
+		t.Errorf("expected IsShared: true, got: %v", allocation.IsShared)
+	}
+
+	allocation, err = allocator("group1", "partition1")
+	if err != nil {
+		t.Errorf("unexpected error: %v", err)
+	}
+	if err := allocation.IsValid(false); err != nil {
+		t.Errorf("unexpected error: %v", err)
+	}
+	if allocation.GroupID != "group1" {
+		t.Errorf("expected group ID: %s, got: %s", "group1", allocation.GroupID)
+	}
+	if allocation.QueueSize != 10 {
+		t.Errorf("expected queue size: %d, got: %d", 10, allocation.QueueSize)
+	}
+	if allocation.PoolSize != 5 {
+		t.Errorf("expected pool size: %d, got: %d", 5, allocation.PoolSize)
+	}
+	if allocation.IsShared {
+		t.Errorf("expected IsShared: false, got: %v", allocation.IsShared)
+	}
+}
+
 // MockJob is a simple mock implementation of the Job interface for testing.
 type MockJob struct {
 	mu        sync.Mutex
@@ -96,6 +142,7 @@ type MockJob struct {
 	accepted  bool
 	rejected  bool
 	proceeded bool
+	slow      bool
 }
 
 func (mj *MockJob) ID() string {
@@ -126,6 +173,9 @@ func (mj *MockJob) Proceed() {
 	mj.mu.Lock()
 	defer mj.mu.Unlock()
 	mj.proceeded = true
+	if mj.slow {
+		<-time.After(jobman.SharedPondCheckInterval * 20)
+	}
 }
 
 // Helper methods to check the state of the job in tests

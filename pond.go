@@ -78,7 +78,7 @@ func NewSharedPond(id string, queueSize, poolSize int) *Pond {
 }
 
 func (p *Pond) String() string {
-	return fmt.Sprintf("🗳️Pond[%s](Shared:%s,Queue:%d,Pool:%d)",
+	return fmt.Sprintf(emojiPond+"Pond[%s](Shared:%s,Queue:%d,Pool:%d)",
 		p.id,
 		charBool(p.isShared),
 		p.queueSize,
@@ -178,8 +178,8 @@ func (p *Pond) Subscribe(q *fifo.Queue[*AllocatedJob]) {
 	p.extQueues = append(p.extQueues, q)
 }
 
-// Submit submits a job to the pond.
-func (p *Pond) Submit(j Job) error {
+// Submit submits a job to the pond. If blockingCallback is true, the job's callback will be executed in the same goroutine.
+func (p *Pond) Submit(j Job, blockingCallback bool) error {
 	if j == nil {
 		return ErrJobNil
 	} else if p.isClosed {
@@ -202,13 +202,7 @@ func (p *Pond) Submit(j Job) error {
 	// attempt to enqueue the job, fail if the queue is full
 	if err := p.queue.TryEnqueue(ja); err != nil {
 		l.Warnw("enqueue failed", zap.Error(err))
-
-		// notify the job is rejected
-		go func() {
-			defer close(ja.readyProc)
-			j.OnRejected()
-		}()
-
+		p.notifyJob(ja, blockingCallback, false)
 		return err
 	}
 
@@ -216,13 +210,32 @@ func (p *Pond) Submit(j Job) error {
 	l.Debugw("job enqueued", "enqueue_count", p.cntEnque.Inc())
 
 	// notify the job is accepted
-	go func() {
-		defer close(ja.readyProc)
-		j.OnAccepted()
-	}()
+	p.notifyJob(ja, blockingCallback, true)
 
 	// return nil if the job is submitted successfully
 	return nil
+}
+
+// notifyJob notifies the job of acceptance or rejection.
+func (p *Pond) notifyJob(ja *AllocatedJob, blockingCallback bool, accepted bool) {
+	j := ja.Job
+	if blockingCallback {
+		if accepted {
+			j.OnAccepted()
+		} else {
+			j.OnRejected()
+		}
+		close(ja.readyProc)
+	} else {
+		go func() {
+			defer close(ja.readyProc)
+			if accepted {
+				j.OnAccepted()
+			} else {
+				j.OnRejected()
+			}
+		}()
+	}
 }
 
 // StartPartitionWatchAsync starts the pond watch loop asynchronously.
