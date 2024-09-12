@@ -161,7 +161,7 @@ func TestPond_RejectJob(t *testing.T) {
 	}
 
 	// Attempt to submit another job which should be rejected
-	err := pond.Submit(&MockJob{id: "job2"}, false)
+	err := pond.Submit(&MockJob{id: "job2"}, true)
 
 	// Assert that the error is not nil (the job should be rejected)
 	if err == nil {
