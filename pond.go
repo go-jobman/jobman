@@ -78,7 +78,7 @@ func NewSharedPond(id string, queueSize, poolSize int) *Pond {
 }
 
 func (p *Pond) String() string {
-	return fmt.Sprintf("🗳️Pond[%s](Shared:%s,Queue:%d,Pool:%d)",
+	return fmt.Sprintf(emojiPond+"Pond[%s](Shared:%s,Queue:%d,Pool:%d)",
 		p.id,
 		charBool(p.isShared),
 		p.queueSize,

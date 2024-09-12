@@ -93,3 +93,11 @@ var (
 	// SharedPondDequeueRetryLimit defines the maximum number of retry attempts for dequeue operations in the shared pond.
 	SharedPondDequeueRetryLimit = uint(3)
 )
+
+const (
+	emojiStat    = "📊"
+	emojiAlloc   = "🧬"
+	emojiPond    = "🗳️"
+	emojiGroup   = "🗂️"
+	emojiManager = "📨"
+)

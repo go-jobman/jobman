@@ -38,7 +38,7 @@ func TestGroup_GetStat(t *testing.T) {
 	if stat.PondCapacity != 3 {
 		t.Errorf("expected pond capacity: %d, got: %d", 3, stat.PondCapacity)
 	}
-	t.Logf("group stat:\n%s", stat)
+	t.Logf("group stat:\n%v", stat)
 }
 
 func TestManager_GetStat(t *testing.T) {
@@ -69,5 +69,5 @@ func TestManager_GetStat(t *testing.T) {
 	if stat.GroupCapacity != 2 {
 		t.Errorf("expected group capacity: %d, got: %d", 2, stat.GroupCapacity)
 	}
-	t.Logf("manager stat:\n%s", stat)
+	t.Logf("manager stat:\n%v", stat)
 }
