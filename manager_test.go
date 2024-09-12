@@ -368,3 +368,101 @@ func TestManager_ErrorsWhilePondIsFull(t *testing.T) {
 
 	t.Logf("show the manager: %v -- %v", manager, manager.GetStat())
 }
+
+// Test WithBlockingCallback option of Manager
+func TestManager_WithBlockingCallback(t *testing.T) {
+	manager := jobman.NewManager("test-manager", jobman.WithBlockingCallback())
+	job := &MockJob{id: "job1", group: "group1"}
+
+	if err := manager.Dispatch(job); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	blockForHandling() // allow some time for the handler to proceed
+	if !job.IsAccepted() {
+		t.Error("expected job to be accepted")
+	}
+	if !job.IsProceeded() {
+		t.Error("expected job to be proceeded")
+	}
+}
+
+// Test WithResizeOnDispatch option of Manager
+func TestManager_WithResizeOnDispatch(t *testing.T) {
+	manager := jobman.NewManager("test-manager", jobman.WithResizeOnDispatch())
+	manager.SetAllocator(jobman.MakeSimpleAllocator(10, 5)) // Set initial allocation
+
+	job := &MockJob{id: "job1", group: "group1"}
+	if err := manager.Dispatch(job); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	blockForHandling() // allow some time for the handler to proceed
+
+	// Resize the allocation and dispatch another job
+	manager.SetAllocator(jobman.MakeSimpleAllocator(20, 10))
+	job2 := &MockJob{id: "job2", group: "group1"}
+	if err := manager.Dispatch(job2); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	blockForHandling() // allow some time for the handler to proceed
+	if !job2.IsAccepted() {
+		t.Error("expected job to be accepted")
+	}
+	if !job2.IsProceeded() {
+		t.Error("expected job to be proceeded")
+	}
+
+	// Verify that the pond size has been resized
+	pond, err := manager.GetPond("group1", "")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if pond.GetQueue().Cap() != 20 {
+		t.Errorf("expected queue capacity: %d, got: %d", 20, pond.GetQueue().Cap())
+	}
+	if pond.GetPool().Cap() != 10 {
+		t.Errorf("expected pool capacity: %d, got: %d", 10, pond.GetPool().Cap())
+	}
+}
+
+// Test Combined options of Manager works without conflict
+func TestManager_CombinedOptions(t *testing.T) {
+	manager := jobman.NewManager("test-manager", jobman.WithBlockingCallback(), jobman.WithResizeOnDispatch())
+	manager.SetAllocator(jobman.MakeSimpleAllocator(10, 5)) // Set initial allocation
+
+	job := &MockJob{id: "job1", group: "group1"}
+	if err := manager.Dispatch(job); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	blockForHandling() // allow some time for the handler to proceed
+
+	// Resize the allocation and dispatch another job
+	manager.SetAllocator(jobman.MakeSimpleAllocator(20, 10))
+	job2 := &MockJob{id: "job2", group: "group1"}
+	if err := manager.Dispatch(job2); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	blockForHandling() // allow some time for the handler to proceed
+	if !job2.IsAccepted() {
+		t.Error("expected job to be accepted")
+	}
+	if !job2.IsProceeded() {
+		t.Error("expected job to be proceeded")
+	}
+
+	// Verify that the pond size has been resized
+	pond, err := manager.GetPond("group1", "")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if pond.GetQueue().Cap() != 20 {
+		t.Errorf("expected queue capacity: %d, got: %d", 20, pond.GetQueue().Cap())
+	}
+	if pond.GetPool().Cap() != 10 {
+		t.Errorf("expected pool capacity: %d, got: %d", 10, pond.GetPool().Cap())
+	}
+}
