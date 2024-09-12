@@ -96,8 +96,12 @@ func TestManager_Dispatch(t *testing.T) {
 	}
 
 	// Ensure Dispatch calls DispatchWithAllocation correctly
-	if _, err := manager.DispatchWithAllocation(job); err != nil {
+	if al, err := manager.DispatchWithAllocation(job); err != nil {
 		t.Errorf("unexpected error: %v", err)
+	} else if al == nil {
+		t.Error("expected allocation, got nil")
+	} else {
+		t.Logf("allocation: %v", al)
 	}
 }
 

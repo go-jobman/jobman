@@ -1,6 +1,7 @@
 package jobman
 
 import (
+	"fmt"
 	"time"
 )
 
@@ -26,6 +27,17 @@ type Allocation struct {
 	IsShared  bool   `json:"is_shared,omitempty"`
 	QueueSize int    `json:"queue_size,omitempty"`
 	PoolSize  int    `json:"pool_size,omitempty"`
+}
+
+// String returns a string representation of the Allocation struct.
+func (a Allocation) String() string {
+	return fmt.Sprintf("📦Allocation(Group:%s,Pond:%s,Shared:%s,Queue:%d,Pool:%d)",
+		a.GroupID,
+		a.PondID,
+		charBool(a.IsShared),
+		a.QueueSize,
+		a.PoolSize,
+	)
 }
 
 // IsValid checks if the allocation is valid.
