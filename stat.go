@@ -121,6 +121,7 @@ func (ms ManagerStat) String() string {
 		ms.ReceivedCount,
 		ms.GroupCapacity,
 	))
+	sb.WriteString("  Groups:\n")
 
 	// Collect and sort group names
 	groupNames := make([]string, 0, len(ms.GroupStats))
@@ -131,7 +132,7 @@ func (ms ManagerStat) String() string {
 
 	// Append sorted group stats to the string builder
 	for _, k := range groupNames {
-		sb.WriteString(fmt.Sprintf("  %s\n", ms.GroupStats[k]))
+		sb.WriteString(fmt.Sprintf("    %s ➡\n    %s", k, ms.GroupStats[k]))
 	}
 	return sb.String()
 }

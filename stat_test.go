@@ -57,13 +57,17 @@ func TestManager_GetStat(t *testing.T) {
 	if err := manager.Dispatch(job); err != nil {
 		t.Errorf("unexpected error: %v", err)
 	}
+	job2 := &MockJob{id: "job2", group: "group2"}
+	if err := manager.Dispatch(job2); err != nil {
+		t.Errorf("unexpected error: %v", err)
+	}
 
 	stat := manager.GetStat()
-	if stat.ReceivedCount != 1 {
-		t.Errorf("expected received count: %d, got: %d", 1, stat.ReceivedCount)
+	if stat.ReceivedCount != 2 {
+		t.Errorf("expected received count: %d, got: %d", 2, stat.ReceivedCount)
 	}
-	if stat.GroupCapacity != 1 {
-		t.Errorf("expected group capacity: %d, got: %d", 1, stat.GroupCapacity)
+	if stat.GroupCapacity != 2 {
+		t.Errorf("expected group capacity: %d, got: %d", 2, stat.GroupCapacity)
 	}
 	t.Logf("manager stat:\n%s", stat)
 }
