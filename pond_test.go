@@ -149,6 +149,31 @@ func TestPond_SubmitToClosedPond(t *testing.T) {
 	}
 }
 
+func TestPond_RejectJob(t *testing.T) {
+	pond := jobman.NewPartitionPond("test-pond", 1, 1) // Small queue size to induce rejection
+
+	// Creating a mock job that can track its state
+	job := &MockJob{id: "job1"}
+
+	// Submit the job to fill the queue and make the next submission fail
+	if err := pond.Submit(job, true); err != nil {
+		t.Errorf("unexpected error while submitting first job: %v", err)
+	}
+
+	// Attempt to submit another job which should be rejected
+	err := pond.Submit(&MockJob{id: "job2"}, false)
+
+	// Assert that the error is not nil (the job should be rejected)
+	if err == nil {
+		t.Error("expected job to be rejected, but got nil")
+	}
+
+	// Check if 'OnRejected' was invoked for the second job
+	if job.IsRejected() {
+		t.Error("expected job2 to be rejected, but it was accepted")
+	}
+}
+
 func TestPond_SubmitJobToFullQueue(t *testing.T) {
 	pond := jobman.NewPartitionPond("test-pond", 1, 5) // Small queue size for testing
 	job1 := &MockJob{id: "job1"}
