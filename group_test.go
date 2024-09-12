@@ -9,7 +9,7 @@ import (
 func TestNewGroup(t *testing.T) {
 	group := jobman.NewGroup("test-group", 10, 5)
 	if group == nil {
-		t.Fatal("expected group to be created, got nil")
+		t.Error("expected group to be created, got nil")
 	}
 
 	if group.String() != "🗂️Group[test-group](Ponds:1,Received:0,Enqueued:0)" {
@@ -35,12 +35,12 @@ func TestGroup_GetPond(t *testing.T) {
 
 	sharedPond := group.GetPond("")
 	if sharedPond == nil {
-		t.Fatal("expected shared pond, got nil")
+		t.Error("expected shared pond, got nil")
 	}
 
 	group.InitializePond("partition-1", 5, 3)
 	partPond := group.GetPond("partition-1")
 	if partPond == nil {
-		t.Fatal("expected partition pond, got nil")
+		t.Error("expected partition pond, got nil")
 	}
 }

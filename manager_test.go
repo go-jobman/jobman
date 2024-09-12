@@ -10,7 +10,7 @@ import (
 func TestNewManager(t *testing.T) {
 	manager := jobman.NewManager("test-manager")
 	if manager == nil {
-		t.Fatal("expected manager to be created, got nil")
+		t.Error("expected manager to be created, got nil")
 	}
 
 	if manager.String() != "📨Manager[test-manager](Groups:0,Received:0)" {
@@ -49,15 +49,15 @@ func TestManager_ResizeQueue(t *testing.T) {
 
 	job := &MockJob{id: "job1", group: "group1"}
 	if err := manager.Dispatch(job); err != nil {
-		t.Fatalf("unexpected error: %v", err)
+		t.Errorf("unexpected error: %v", err)
 	}
 
 	if err := manager.ResizeQueue("group1", "", 10); err != nil {
-		t.Fatalf("unexpected error: %v", err)
+		t.Errorf("unexpected error: %v", err)
 	}
 
 	if err := manager.ResizeQueue("group1", "missing", 10); err == nil {
-		t.Fatal("expected error, got nil")
+		t.Error("expected error, got nil")
 	}
 }
 
@@ -75,15 +75,15 @@ func TestManager_ResizePool(t *testing.T) {
 
 	job := &MockJob{id: "job1", group: "group1"}
 	if err := manager.Dispatch(job); err != nil {
-		t.Fatalf("unexpected error: %v", err)
+		t.Errorf("unexpected error: %v", err)
 	}
 
 	if err := manager.ResizePool("group1", "", 5); err != nil {
-		t.Fatalf("unexpected error: %v", err)
+		t.Errorf("unexpected error: %v", err)
 	}
 
 	if err := manager.ResizePool("group1", "missing", 5); err == nil {
-		t.Fatal("expected error, got nil")
+		t.Error("expected error, got nil")
 	}
 }
 
@@ -92,12 +92,12 @@ func TestManager_Dispatch(t *testing.T) {
 
 	job := &MockJob{id: "job1", group: "group1"}
 	if err := manager.Dispatch(job); err != nil {
-		t.Fatalf("unexpected error: %v", err)
+		t.Errorf("unexpected error: %v", err)
 	}
 
 	// Ensure Dispatch calls DispatchWithAllocation correctly
 	if _, err := manager.DispatchWithAllocation(job); err != nil {
-		t.Fatalf("unexpected error: %v", err)
+		t.Errorf("unexpected error: %v", err)
 	}
 }
 
@@ -105,7 +105,7 @@ func TestManager_DispatchWithNilJob(t *testing.T) {
 	manager := jobman.NewManager("test-manager")
 	err := manager.Dispatch(nil)
 	if !errors.Is(err, jobman.ErrJobNil) {
-		t.Fatalf("expected error: %v, got: %v", jobman.ErrJobNil, err)
+		t.Errorf("expected error: %v, got: %v", jobman.ErrJobNil, err)
 	}
 }
 
@@ -115,7 +115,7 @@ func TestManager_DispatchWithNoAllocator(t *testing.T) {
 	job := &MockJob{id: "job1", group: "group1"}
 	err := manager.Dispatch(job)
 	if !errors.Is(err, jobman.ErrAllocatorNotSet) {
-		t.Fatalf("expected error: %v, got: %v", jobman.ErrAllocatorNotSet, err)
+		t.Errorf("expected error: %v, got: %v", jobman.ErrAllocatorNotSet, err)
 	}
 }
 
@@ -133,7 +133,7 @@ func TestManager_DispatchWithInvalidAllocation(t *testing.T) {
 	job := &MockJob{id: "job1", group: "group1"}
 	err := manager.Dispatch(job)
 	if !errors.Is(err, jobman.ErrInvalidGroupID) {
-		t.Fatalf("expected error: %v, got: %v", jobman.ErrInvalidGroupID, err)
+		t.Errorf("expected error: %v, got: %v", jobman.ErrInvalidGroupID, err)
 	}
 }
 
@@ -149,7 +149,7 @@ func TestManager_DispatchWithNewGroup(t *testing.T) {
 	})
 	job := &MockJob{id: "job1", group: "group1"}
 	if err := manager.Dispatch(job); err != nil {
-		t.Fatalf("unexpected error: %v", err)
+		t.Errorf("unexpected error: %v", err)
 	}
 }
 
@@ -165,12 +165,12 @@ func TestManager_DispatchWithExistingGroup(t *testing.T) {
 	})
 	job1 := &MockJob{id: "job1", group: "group1"}
 	if err := manager.Dispatch(job1); err != nil {
-		t.Fatalf("unexpected error: %v", err)
+		t.Errorf("unexpected error: %v", err)
 	}
 
 	job2 := &MockJob{id: "job2", group: "group1"}
 	if err := manager.Dispatch(job2); err != nil {
-		t.Fatalf("unexpected error: %v", err)
+		t.Errorf("unexpected error: %v", err)
 	}
 }
 
@@ -187,7 +187,7 @@ func TestManager_DispatchToPartitionPond(t *testing.T) {
 	})
 	job := &MockJob{id: "job1", group: "group1", partition: "partition1"}
 	if err := manager.Dispatch(job); err != nil {
-		t.Fatalf("unexpected error: %v", err)
+		t.Errorf("unexpected error: %v", err)
 	}
 }
 
@@ -219,7 +219,7 @@ func TestManager_DispatchToSharedPond(t *testing.T) {
 
 	sharedPond, err := manager.GetPond("group1", "")
 	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
+		t.Errorf("unexpected error: %v", err)
 	}
 	stat := sharedPond.GetStat()
 	if stat.DequeuedCount != 2 {
@@ -248,28 +248,28 @@ func TestManager_GetPond(t *testing.T) {
 
 	job := &MockJob{id: "job1", group: "group1"}
 	if err := manager.Dispatch(job); err != nil {
-		t.Fatalf("unexpected error: %v", err)
+		t.Errorf("unexpected error: %v", err)
 	}
 
 	// Test shared pond
 	sharedPond, err := manager.GetPond("group1", "")
 	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
+		t.Errorf("unexpected error: %v", err)
 	}
 	if sharedPond == nil {
-		t.Fatal("expected shared pond, got nil")
+		t.Error("expected shared pond, got nil")
 	}
 
 	// Test partition pond
 	if err := manager.Dispatch(&MockJob{id: "job2", group: "group1", partition: "partition1"}); err != nil {
-		t.Fatalf("expected error: %v, got: %v", nil, err)
+		t.Errorf("expected error: %v, got: %v", nil, err)
 	}
 	partPond, err := manager.GetPond("group1", "partition1")
 	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
+		t.Errorf("unexpected error: %v", err)
 	}
 	if partPond == nil {
-		t.Fatal("expected partition pond, got nil")
+		t.Error("expected partition pond, got nil")
 	}
 }
 
@@ -288,15 +288,15 @@ func TestManager_GetGroup(t *testing.T) {
 
 	job := &MockJob{id: "job1", group: "group1"}
 	if err := manager.Dispatch(job); err != nil {
-		t.Fatalf("unexpected error: %v", err)
+		t.Errorf("unexpected error: %v", err)
 	}
 
 	group, err := manager.GetGroup("group1")
 	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
+		t.Errorf("unexpected error: %v", err)
 	}
 	if group == nil {
-		t.Fatal("expected group, got nil")
+		t.Error("expected group, got nil")
 	}
 }
 
@@ -309,7 +309,7 @@ func TestManager_AllocationIssues(t *testing.T) {
 	job := &MockJob{id: "job1", group: "group1"}
 	err := manager.Dispatch(job)
 	if !errors.Is(err, jobman.ErrAllocatorNotSet) {
-		t.Fatalf("expected error: %v, got: %v", jobman.ErrAllocatorNotSet, err)
+		t.Errorf("expected error: %v, got: %v", jobman.ErrAllocatorNotSet, err)
 	}
 
 	// Test with invalid allocation
@@ -324,7 +324,7 @@ func TestManager_AllocationIssues(t *testing.T) {
 	})
 	err = manager.Dispatch(job)
 	if !errors.Is(err, jobman.ErrInvalidGroupID) {
-		t.Fatalf("expected error: %v, got: %v", jobman.ErrInvalidGroupID, err)
+		t.Errorf("expected error: %v, got: %v", jobman.ErrInvalidGroupID, err)
 	}
 }
 
@@ -350,7 +350,7 @@ func TestManager_ErrorsWhilePondIsFull(t *testing.T) {
 
 	// first job should be accepted and then proceed
 	if err := manager.Dispatch(job1); err != nil {
-		t.Fatalf("unexpected error: %v", err)
+		t.Errorf("unexpected error: %v", err)
 	}
 
 	// for the rest of the jobs, their status is undetermined
@@ -363,7 +363,7 @@ func TestManager_ErrorsWhilePondIsFull(t *testing.T) {
 	// now the pond is full, even the extra internal variables are full
 	blockForHandling()
 	if err := manager.Dispatch(job5); err == nil {
-		t.Fatal("expected queue full error, got nil")
+		t.Error("expected queue full error, got nil")
 	}
 
 	t.Logf("show the manager: %v -- %v", manager, manager.GetStat())
@@ -375,7 +375,7 @@ func TestManager_WithBlockingCallback(t *testing.T) {
 	job := &MockJob{id: "job1", group: "group1"}
 
 	if err := manager.Dispatch(job); err != nil {
-		t.Fatalf("unexpected error: %v", err)
+		t.Errorf("unexpected error: %v", err)
 	}
 
 	blockForHandling() // allow some time for the handler to proceed
@@ -394,7 +394,7 @@ func TestManager_WithResizeOnDispatch(t *testing.T) {
 
 	job := &MockJob{id: "job1", group: "group1", slow: true}
 	if err := manager.Dispatch(job); err != nil {
-		t.Fatalf("unexpected error: %v", err)
+		t.Errorf("unexpected error: %v", err)
 	}
 
 	blockForHandling() // allow some time for the handler to proceed
@@ -402,7 +402,7 @@ func TestManager_WithResizeOnDispatch(t *testing.T) {
 	// Verify the initial pond size and capacity after first dispatch
 	pond, err := manager.GetPond("group1", "")
 	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
+		t.Errorf("unexpected error: %v", err)
 	}
 	if pond.GetQueue().Cap() != 10 {
 		t.Errorf("expected queue capacity: %d, got: %d", 10, pond.GetQueue().Cap())
@@ -420,7 +420,7 @@ func TestManager_WithResizeOnDispatch(t *testing.T) {
 	manager.SetAllocator(jobman.MakeSimpleAllocator(20, 10))
 	job2 := &MockJob{id: "job2", group: "group1", slow: true}
 	if err := manager.Dispatch(job2); err != nil {
-		t.Fatalf("unexpected error: %v", err)
+		t.Errorf("unexpected error: %v", err)
 	}
 
 	blockForHandling() // allow some time for the handler to proceed
@@ -434,7 +434,7 @@ func TestManager_WithResizeOnDispatch(t *testing.T) {
 	// Verify that the pond size has been resized
 	pond, err = manager.GetPond("group1", "")
 	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
+		t.Errorf("unexpected error: %v", err)
 	}
 	if pond.GetQueue().Cap() != 20 {
 		t.Errorf("expected queue capacity: %d, got: %d", 20, pond.GetQueue().Cap())
@@ -456,7 +456,7 @@ func TestManager_CombinedOptions(t *testing.T) {
 
 	job := &MockJob{id: "job1", group: "group1"}
 	if err := manager.Dispatch(job); err != nil {
-		t.Fatalf("unexpected error: %v", err)
+		t.Errorf("unexpected error: %v", err)
 	}
 
 	blockForHandling() // allow some time for the handler to proceed
@@ -465,7 +465,7 @@ func TestManager_CombinedOptions(t *testing.T) {
 	manager.SetAllocator(jobman.MakeSimpleAllocator(20, 10))
 	job2 := &MockJob{id: "job2", group: "group1"}
 	if err := manager.Dispatch(job2); err != nil {
-		t.Fatalf("unexpected error: %v", err)
+		t.Errorf("unexpected error: %v", err)
 	}
 
 	blockForHandling() // allow some time for the handler to proceed
@@ -479,7 +479,7 @@ func TestManager_CombinedOptions(t *testing.T) {
 	// Verify that the pond size has been resized
 	pond, err := manager.GetPond("group1", "")
 	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
+		t.Errorf("unexpected error: %v", err)
 	}
 	if pond.GetQueue().Cap() != 20 {
 		t.Errorf("expected queue capacity: %d, got: %d", 20, pond.GetQueue().Cap())

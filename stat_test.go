@@ -52,7 +52,7 @@ func TestManager_GetStat(t *testing.T) {
 
 	job := &MockJob{id: "job1", group: "group1"}
 	if err := manager.Dispatch(job); err != nil {
-		t.Fatalf("unexpected error: %v", err)
+		t.Errorf("unexpected error: %v", err)
 	}
 
 	stat := manager.GetStat()

@@ -94,10 +94,10 @@ func TestMakeSimpleAllocator(t *testing.T) {
 
 	allocation, err := allocator("group1", "")
 	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
+		t.Errorf("unexpected error: %v", err)
 	}
 	if err := allocation.IsValid(true); err != nil {
-		t.Fatalf("unexpected error: %v", err)
+		t.Errorf("unexpected error: %v", err)
 	}
 	if allocation.GroupID != "group1" {
 		t.Errorf("expected group ID: %s, got: %s", "group1", allocation.GroupID)
@@ -114,10 +114,10 @@ func TestMakeSimpleAllocator(t *testing.T) {
 
 	allocation, err = allocator("group1", "partition1")
 	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
+		t.Errorf("unexpected error: %v", err)
 	}
 	if err := allocation.IsValid(false); err != nil {
-		t.Fatalf("unexpected error: %v", err)
+		t.Errorf("unexpected error: %v", err)
 	}
 	if allocation.GroupID != "group1" {
 		t.Errorf("expected group ID: %s, got: %s", "group1", allocation.GroupID)
