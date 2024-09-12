@@ -31,7 +31,7 @@ type Allocation struct {
 
 // String returns a string representation of the Allocation struct.
 func (a Allocation) String() string {
-	return fmt.Sprintf("📦Allocation(Group:%s,Pond:%s,Shared:%s,Queue:%d,Pool:%d)",
+	return fmt.Sprintf("🧬Allocation(Group=%s,Pond=%s,Shared=%s,Queue=%d,Pool=%d)",
 		a.GroupID,
 		a.PondID,
 		charBool(a.IsShared),

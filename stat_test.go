@@ -20,11 +20,13 @@ func TestPond_GetStat(t *testing.T) {
 	if stat.EnqueuedCount != 1 {
 		t.Errorf("expected enqueued count: %d, got: %d", 1, stat.EnqueuedCount)
 	}
+	t.Logf("pond stat:\n%s", stat)
 }
 
 func TestGroup_GetStat(t *testing.T) {
 	group := jobman.NewGroup("test-group", 10, 5)
 	group.InitializePond("partition-1", 5, 3)
+	group.InitializePond("partition-2", 5, 3)
 
 	stat := group.GetStat()
 	if stat.ReceivedCount != 0 {
@@ -33,9 +35,10 @@ func TestGroup_GetStat(t *testing.T) {
 	if stat.EnqueuedCount != 0 {
 		t.Errorf("expected enqueued count: %d, got: %d", 0, stat.EnqueuedCount)
 	}
-	if stat.PondCapacity != 2 {
-		t.Errorf("expected pond capacity: %d, got: %d", 2, stat.PondCapacity)
+	if stat.PondCapacity != 3 {
+		t.Errorf("expected pond capacity: %d, got: %d", 3, stat.PondCapacity)
 	}
+	t.Logf("group stat:\n%s", stat)
 }
 
 func TestManager_GetStat(t *testing.T) {
@@ -62,4 +65,5 @@ func TestManager_GetStat(t *testing.T) {
 	if stat.GroupCapacity != 1 {
 		t.Errorf("expected group capacity: %d, got: %d", 1, stat.GroupCapacity)
 	}
+	t.Logf("manager stat:\n%s", stat)
 }

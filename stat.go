@@ -1,5 +1,15 @@
 package jobman
 
+import (
+	"fmt"
+	"sort"
+	"strings"
+)
+
+const (
+	emojiStat = "📊"
+)
+
 // PondStat represents the statistics of a pond.
 type PondStat struct {
 	ReceivedCount  int64 `json:"job_received"`
@@ -11,6 +21,21 @@ type PondStat struct {
 	QueueFree      int   `json:"queue_free"`
 	PoolCapacity   int   `json:"pool_cap"`
 	PoolFree       int   `json:"pool_free"`
+}
+
+// String returns a string representation of the PondStat struct.
+func (ps PondStat) String() string {
+	return fmt.Sprintf(emojiStat+"PondStat(Received=%d,Enqueued=%d,Dequeued=%d,Proceeded=%d,Completed=%d,QueueCap=%d,QueueFree=%d,PoolCap=%d,PoolFree=%d)",
+		ps.ReceivedCount,
+		ps.EnqueuedCount,
+		ps.DequeuedCount,
+		ps.ProceededCount,
+		ps.CompletedCount,
+		ps.QueueCapacity,
+		ps.QueueFree,
+		ps.PoolCapacity,
+		ps.PoolFree,
+	)
 }
 
 // GetStat returns the statistics of the pond.
@@ -41,6 +66,29 @@ type GroupStat struct {
 	PondStats     map[string]*PondStat `json:"pond_stats"`
 }
 
+func (gs GroupStat) String() string {
+	var sb strings.Builder
+	sb.WriteString(fmt.Sprintf(emojiStat+"GroupStat(Received=%d,Enqueued=%d,PondCapacity=%d):\n",
+		gs.ReceivedCount,
+		gs.EnqueuedCount,
+		gs.PondCapacity,
+	))
+	sb.WriteString("  Ponds:\n")
+
+	// Collect and sort pond names
+	pondNames := make([]string, 0, len(gs.PondStats))
+	for k := range gs.PondStats {
+		pondNames = append(pondNames, k)
+	}
+	sort.Strings(pondNames)
+
+	// Append sorted pond stats to the string builder
+	for _, k := range pondNames {
+		sb.WriteString(fmt.Sprintf("    %s ➡ %s\n", k, gs.PondStats[k]))
+	}
+	return sb.String()
+}
+
 // GetStat returns the statistics of the group.
 func (g *Group) GetStat() *GroupStat {
 	g.mu.RLock()
@@ -65,6 +113,27 @@ type ManagerStat struct {
 	ReceivedCount int64                 `json:"job_received"`
 	GroupCapacity int                   `json:"group_cap"`
 	GroupStats    map[string]*GroupStat `json:"group_stats"`
+}
+
+func (ms ManagerStat) String() string {
+	var sb strings.Builder
+	sb.WriteString(fmt.Sprintf(emojiStat+"ManagerStat(Received=%d,GroupCapacity=%d):\n",
+		ms.ReceivedCount,
+		ms.GroupCapacity,
+	))
+
+	// Collect and sort group names
+	groupNames := make([]string, 0, len(ms.GroupStats))
+	for k := range ms.GroupStats {
+		groupNames = append(groupNames, k)
+	}
+	sort.Strings(groupNames)
+
+	// Append sorted group stats to the string builder
+	for _, k := range groupNames {
+		sb.WriteString(fmt.Sprintf("  %s\n", ms.GroupStats[k]))
+	}
+	return sb.String()
 }
 
 // GetStat returns the statistics of the manager.
