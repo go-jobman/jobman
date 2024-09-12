@@ -392,16 +392,33 @@ func TestManager_WithResizeOnDispatch(t *testing.T) {
 	manager := jobman.NewManager("test-manager", jobman.WithResizeOnDispatch())
 	manager.SetAllocator(jobman.MakeSimpleAllocator(10, 5)) // Set initial allocation
 
-	job := &MockJob{id: "job1", group: "group1"}
+	job := &MockJob{id: "job1", group: "group1", slow: true}
 	if err := manager.Dispatch(job); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
 	blockForHandling() // allow some time for the handler to proceed
 
+	// Verify the initial pond size and capacity after first dispatch
+	pond, err := manager.GetPond("group1", "")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if pond.GetQueue().Cap() != 10 {
+		t.Errorf("expected queue capacity: %d, got: %d", 10, pond.GetQueue().Cap())
+	}
+	if pond.GetPool().Cap() != 5 {
+		t.Errorf("expected pool capacity: %d, got: %d", 5, pond.GetPool().Cap())
+	}
+
+	// Check queue and pool sizes
+	if pond.GetPool().Free() != 4 { // 5 total - 1 job dispatched
+		t.Errorf("expected pool free size: %d, got: %d", 4, pond.GetPool().Free())
+	}
+
 	// Resize the allocation and dispatch another job
 	manager.SetAllocator(jobman.MakeSimpleAllocator(20, 10))
-	job2 := &MockJob{id: "job2", group: "group1"}
+	job2 := &MockJob{id: "job2", group: "group1", slow: true}
 	if err := manager.Dispatch(job2); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -415,7 +432,7 @@ func TestManager_WithResizeOnDispatch(t *testing.T) {
 	}
 
 	// Verify that the pond size has been resized
-	pond, err := manager.GetPond("group1", "")
+	pond, err = manager.GetPond("group1", "")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -424,6 +441,11 @@ func TestManager_WithResizeOnDispatch(t *testing.T) {
 	}
 	if pond.GetPool().Cap() != 10 {
 		t.Errorf("expected pool capacity: %d, got: %d", 10, pond.GetPool().Cap())
+	}
+
+	// Check queue and pool sizes again
+	if pond.GetPool().Free() != 8 { // 10 total - 2 jobs dispatched
+		t.Errorf("expected pool free size: %d, got: %d", 8, pond.GetPool().Free())
 	}
 }
 
