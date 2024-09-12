@@ -42,20 +42,12 @@ type Manager struct {
 // NewManager creates a new Manager with the specified id.
 func NewManager(name string, opts ...ManagerOption) *Manager {
 	m := &Manager{
-		lg:   log.With("manager", name),
-		name: name,
-		alloc: func(group, partition string) (Allocation, error) {
-			// default allocation: 2 queue size, 1 pool size
-			return Allocation{
-				GroupID:   group,
-				PondID:    partition,
-				IsShared:  partition == "",
-				QueueSize: 2,
-				PoolSize:  1,
-			}, nil
-		},
+		lg:     log.With("manager", name),
+		name:   name,
+		alloc:  MakeSimpleAllocator(2, 1), // default allocation: 2 queue size, 1 pool size
 		groups: make(map[string]*Group),
 	}
+	// apply options
 	for _, opt := range opts {
 		opt(m)
 	}
@@ -212,8 +204,8 @@ func (m *Manager) DispatchWithAllocation(j Job) (*Allocation, error) {
 
 	// auto resize the pond if necessary
 	if m.resizeOnDispatch {
-		pd.ResizePool(al.PoolSize)
 		pd.ResizeQueue(al.QueueSize)
+		pd.ResizePool(al.PoolSize)
 	}
 
 	// submit the job

@@ -56,3 +56,16 @@ type AllocatedJob struct {
 	SubmitAt  time.Time
 	Job       Job
 }
+
+// MakeSimpleAllocator is a helper function to create an allocator function that always returns the given sizes as allocation for both shared and partition ponds.
+func MakeSimpleAllocator(queueSize, poolSize int) AllocatorFunc {
+	return func(group, partition string) (Allocation, error) {
+		return Allocation{
+			GroupID:   group,
+			PondID:    partition,
+			IsShared:  partition == "",
+			QueueSize: queueSize,
+			PoolSize:  poolSize,
+		}, nil
+	}
+}
