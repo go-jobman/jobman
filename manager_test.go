@@ -188,6 +188,32 @@ func TestManager_DispatchWithInvalidExtraAllocation(t *testing.T) {
 	checkAllocErrorCount(t, manager)
 }
 
+func TestManager_DispatchWithExtraAllocationError(t *testing.T) {
+	cnt := 0
+	allErr := errors.New("allocation error")
+	manager := jobman.NewManager("test-manager")
+	manager.SetAllocator(func(group, partition string) (jobman.Allocation, error) {
+		cnt++
+		if cnt == 1 {
+			return jobman.Allocation{
+				GroupID:   group,
+				PondID:    partition,
+				IsShared:  false,
+				QueueSize: 1,
+				PoolSize:  3,
+			}, nil
+		}
+		return jobman.Allocation{}, allErr
+	})
+
+	job := &MockJob{id: "job1", group: "group1"}
+	err := manager.Dispatch(job)
+	if !errors.Is(err, allErr) {
+		t.Errorf("expected error: %v, got: %v", allErr, err)
+	}
+	checkAllocErrorCount(t, manager)
+}
+
 func TestManager_DispatchWithNewGroup(t *testing.T) {
 	manager := jobman.NewManager("test-manager")
 	manager.SetAllocator(func(group, partition string) (jobman.Allocation, error) {
