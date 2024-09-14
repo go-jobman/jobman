@@ -103,7 +103,16 @@ func TestManager_InvalidExtraAllocation(t *testing.T) {
 	if _, err := manager.DispatchWithAllocation(job); err == nil {
 		t.Error("expected error, got nil")
 	}
-	t.Logf("show the manager: %v -- %v", manager, manager.GetStat())
+	st := manager.GetStat()
+	if st.ReceivedCount != 1 {
+		t.Errorf("expected received count: 1, got: %d", st.ReceivedCount)
+	}
+	if st.AllocErrCount != 1 {
+		t.Errorf("expected alloc error count: 1, got: %d", st.AllocErrCount)
+	}
+	if st.EnqueuedCount != 0 {
+		t.Errorf("expected enqueued count: 0, got: %d", st.EnqueuedCount)
+	}
 }
 
 func TestManager_Dispatch(t *testing.T) {
