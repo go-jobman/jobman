@@ -22,11 +22,11 @@ type Job interface {
 // QueueSize represents the size of the queue associated with the pond.
 // PoolSize represents the size of the pool associated with the pond.
 type Allocation struct {
-	GroupID   string `json:"group,omitempty"`
-	PondID    string `json:"pond,omitempty"`
-	IsShared  bool   `json:"is_shared,omitempty"`
-	QueueSize int    `json:"queue_size,omitempty"`
-	PoolSize  int    `json:"pool_size,omitempty"`
+	GroupID   string `json:"group"`
+	PondID    string `json:"pond"`
+	IsShared  bool   `json:"is_shared"`
+	QueueSize int    `json:"queue_size"`
+	PoolSize  int    `json:"pool_size"`
 }
 
 // String returns a string representation of the Allocation struct.
