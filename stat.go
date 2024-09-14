@@ -117,15 +117,18 @@ func (g *Group) GetStat() *GroupStat {
 
 // ManagerStat represents the statistics of a manager.
 type ManagerStat struct {
-	ReceivedCount int64                 `json:"job_received"`
-	GroupCapacity int                   `json:"group_cap"`
-	GroupStats    map[string]*GroupStat `json:"group_stats"`
+	ReceivedCount   int64                 `json:"job_received"`
+	EnqueuedCount   int64                 `json:"job_enqueued"`
+	AllocationError int64                 `json:"alloc_error"`
+	GroupCapacity   int                   `json:"group_cap"`
+	GroupStats      map[string]*GroupStat `json:"group_stats"`
 }
 
 // String returns a string representation of the ManagerStat struct.
 func (ms ManagerStat) String() string {
 	totalPonds := 0
 	totalReceived := ms.ReceivedCount
+	totalAllocErr := ms.AllocationError
 	totalEnqueued := int64(0)
 	totalDequeued := int64(0)
 	totalProceeded := int64(0)
@@ -149,11 +152,12 @@ func (ms ManagerStat) String() string {
 		}
 	}
 
-	return fmt.Sprintf(emojiStat+"ManagerStat(Groups=%d,Ponds=%d,Received=%d,Enqueued=%d,Dequeued=%d,Proceeded=%d,Completed=%d,QueueCap=%d,QueueFree=%d,PoolCap=%d,PoolFree=%d)",
+	return fmt.Sprintf(emojiStat+"ManagerStat(Groups=%d,Ponds=%d,Received=%d,Enqueued=%d,AllocErr=%d,Dequeued=%d,Proceeded=%d,Completed=%d,QueueCap=%d,QueueFree=%d,PoolCap=%d,PoolFree=%d)",
 		ms.GroupCapacity,
 		totalPonds,
 		totalReceived,
 		totalEnqueued,
+		totalAllocErr,
 		totalDequeued,
 		totalProceeded,
 		totalCompleted,
@@ -174,8 +178,10 @@ func (m *Manager) GetStat() *ManagerStat {
 		gs[k] = v.GetStat()
 	}
 	return &ManagerStat{
-		ReceivedCount: m.cntRecv.Load(),
-		GroupCapacity: len(m.groups),
-		GroupStats:    gs,
+		ReceivedCount:   m.cntRecv.Load(),
+		EnqueuedCount:   m.cntEnque.Load(),
+		AllocationError: m.cntAllocErr.Load(),
+		GroupCapacity:   len(m.groups),
+		GroupStats:      gs,
 	}
 }

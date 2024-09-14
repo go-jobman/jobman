@@ -58,10 +58,12 @@ func NewManager(name string, opts ...ManagerOption) *Manager {
 
 func (m *Manager) String() string {
 	return fmt.Sprintf(
-		emojiManager+"Manager[%s](Groups:%d,Received:%d)",
+		emojiManager+"Manager[%s](Groups:%d,Received:%d,Enqueued:%d,AllocErr:%d)",
 		m.name,
 		len(m.groups),
 		m.cntRecv.Load(),
+		m.cntEnque.Load(),
+		m.cntAllocErr.Load(),
 	)
 }
 

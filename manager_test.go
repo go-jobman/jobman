@@ -13,7 +13,7 @@ func TestNewManager(t *testing.T) {
 		t.Error("expected manager to be created, got nil")
 	}
 
-	if manager.String() != "📨Manager[test-manager](Groups:0,Received:0)" {
+	if manager.String() != "📨Manager[test-manager](Groups:0,Received:0,Enqueued:0,AllocErr:0)" {
 		t.Errorf("unexpected string representation: %s", manager.String())
 	}
 
@@ -103,6 +103,7 @@ func TestManager_InvalidExtraAllocation(t *testing.T) {
 	if _, err := manager.DispatchWithAllocation(job); err == nil {
 		t.Error("expected error, got nil")
 	}
+	t.Logf("show the manager: %v -- %v", manager, manager.GetStat())
 }
 
 func TestManager_Dispatch(t *testing.T) {
