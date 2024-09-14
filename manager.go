@@ -170,18 +170,21 @@ func (m *Manager) DispatchWithAllocation(j Job) (*Allocation, error) {
 		// get shared pool allocation
 		var sl Allocation
 		if al.IsShared {
-			// existing allocation is actually for shared pool
+			// the allocation is actually for shared pool
 			sl = al
 		} else {
-			// extra call for shared pool allocation
+			// another call for shared pool allocation
 			if sl, err = m.alloc(j.Group(), ""); err != nil {
 				l.Warnw("fail to get allocation for shared", zap.Error(err))
 				return nil, err
-			} else if err := sl.IsValid(true); err != nil {
-				l.Warnw("got invalid allocation for shared", zap.Error(err))
-				return nil, err
 			}
 		}
+		// validate the shared pool allocation
+		if err := sl.IsValid(true); err != nil {
+			l.Warnw("got invalid allocation for shared", zap.Error(err))
+			return nil, err
+		}
+		// now create a new group
 		grp = NewGroup(sl.GroupID, sl.QueueSize, sl.PoolSize)
 		m.groups[sl.GroupID] = grp
 	}

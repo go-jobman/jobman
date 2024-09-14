@@ -87,6 +87,24 @@ func TestManager_ResizePool(t *testing.T) {
 	}
 }
 
+func TestManager_InvalidExtraAllocation(t *testing.T) {
+	manager := jobman.NewManager("test-manager")
+	manager.SetAllocator(func(group, partition string) (jobman.Allocation, error) {
+		return jobman.Allocation{
+			GroupID:   group,
+			PondID:    partition,
+			IsShared:  false,
+			QueueSize: 1,
+			PoolSize:  3,
+		}, nil
+	})
+
+	job := &MockJob{id: "job1", group: "group1"}
+	if _, err := manager.DispatchWithAllocation(job); err == nil {
+		t.Error("expected error, got nil")
+	}
+}
+
 func TestManager_Dispatch(t *testing.T) {
 	manager := jobman.NewManager("test-manager")
 
