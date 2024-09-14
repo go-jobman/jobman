@@ -36,7 +36,9 @@ type Manager struct {
 	blockCallback    bool
 	resizeOnDispatch bool
 	// counters
-	cntRecv atomic.Int64
+	cntRecv     atomic.Int64
+	cntEnque    atomic.Int64
+	cntAllocErr atomic.Int64
 }
 
 // NewManager creates a new Manager with the specified id.
@@ -56,10 +58,12 @@ func NewManager(name string, opts ...ManagerOption) *Manager {
 
 func (m *Manager) String() string {
 	return fmt.Sprintf(
-		emojiManager+"Manager[%s](Groups:%d,Received:%d)",
+		emojiManager+"Manager[%s](Groups:%d,Received:%d,Enqueued:%d,AllocErr:%d)",
 		m.name,
 		len(m.groups),
 		m.cntRecv.Load(),
+		m.cntEnque.Load(),
+		m.cntAllocErr.Load(),
 	)
 }
 
@@ -146,15 +150,15 @@ func (m *Manager) DispatchWithAllocation(j Job) (*Allocation, error) {
 
 	// get allocation for the job
 	if m.alloc == nil {
-		l.Warn("allocator not set")
+		l.Warn("allocator not set", "error_count", m.cntAllocErr.Inc())
 		return nil, ErrAllocatorNotSet
 	}
 	al, err := m.alloc(j.Group(), j.Partition())
 	if err != nil {
-		l.Warnw("fail to get allocation", zap.Error(err))
+		l.Warnw("fail to get allocation", "error_count", m.cntAllocErr.Inc(), zap.Error(err))
 		return nil, err
 	} else if err := al.IsValid(false); err != nil {
-		l.Warnw("got invalid allocation", zap.Error(err))
+		l.Warnw("got invalid allocation", "error_count", m.cntAllocErr.Inc(), zap.Error(err))
 		return nil, err
 	}
 	l.Debugw("got allocation", "allocation", al)
@@ -170,18 +174,21 @@ func (m *Manager) DispatchWithAllocation(j Job) (*Allocation, error) {
 		// get shared pool allocation
 		var sl Allocation
 		if al.IsShared {
-			// existing allocation is actually for shared pool
+			// the allocation is actually for shared pool
 			sl = al
 		} else {
-			// extra call for shared pool allocation
+			// another call for shared pool allocation
 			if sl, err = m.alloc(j.Group(), ""); err != nil {
-				l.Warnw("fail to get allocation for shared", zap.Error(err))
-				return nil, err
-			} else if err := sl.IsValid(true); err != nil {
-				l.Warnw("got invalid allocation for shared", zap.Error(err))
+				l.Warnw("fail to get allocation for shared", "error_count", m.cntAllocErr.Inc(), zap.Error(err))
 				return nil, err
 			}
 		}
+		// validate the shared pool allocation
+		if err := sl.IsValid(true); err != nil {
+			l.Warnw("got invalid allocation for shared", "error_count", m.cntAllocErr.Inc(), zap.Error(err))
+			return nil, err
+		}
+		// now create a new group
 		grp = NewGroup(sl.GroupID, sl.QueueSize, sl.PoolSize)
 		m.groups[sl.GroupID] = grp
 	}
@@ -215,6 +222,6 @@ func (m *Manager) DispatchWithAllocation(j Job) (*Allocation, error) {
 	}
 
 	// success
-	l.Infow("job dispatched successfully", "group_id", al.GroupID, "pond_id", al.PondID, "group_count", grp.cntEnque.Inc())
+	l.Infow("job dispatched successfully", "group_id", al.GroupID, "pond_id", al.PondID, "group_count", grp.cntEnque.Inc(), "manager_count", m.cntEnque.Inc())
 	return &al, nil
 }
